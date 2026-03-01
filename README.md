@@ -1,8 +1,8 @@
-﻿# ZygorWaypoint
+# ZygorWaypoint
 
 > A lightweight waypoint bridge that routes Blizzard map targets and slash commands through Zygor's travel arrow — no TomTom required.
 
-![Version](https://img.shields.io/badge/version-1.0-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/requires-Zygor%20Guides-red)
+![Version](https://img.shields.io/badge/version-1.0a-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/requires-Zygor%20Guides-red)
 
 ---
 
@@ -43,9 +43,10 @@ ZygorWaypoint watches Blizzard's supertracking system and automatically routes t
 
 | Command | Description |
 |---|---|
-| `/zw on \| off \| toggle` | Enable or disable ZygorWaypoint |
-| `/zw clear` | Clear the active waypoint |
-| `/zw auto on \| off \| toggle` | Control auto-routing behavior |
+| `/zwp on \| off \| toggle` | Enable or disable ZygorWaypoint |
+| `/zwp clear` | Clear the active waypoint |
+| `/zwp status` | Show addon and auto-routing status |
+| `/zwp auto on \| off \| toggle` | Control auto-routing behavior |
 
 ---
 
@@ -137,16 +138,19 @@ ZygorWaypoint/
 
 ## Changelog
 
-### v1.0 — Initial Release
+### v1.0a
+- `/zwp status` command for quick addon and auto-routing state checks
+- Addon enable/disable toggle via `/zwp on | off | toggle`
+- Control command moved to `/zwp` (from `/zw`) to avoid slash conflicts with Zygor
+
+### v1.0 - Initial Release
 - Direct waypoint commands via `/way`
-- `/clearway` and `/zw clear` support
+- `/clearway` and `/zwp clear` support
 - Auto-routing from Blizzard map/quest supertracking
-- `/zw auto on | off | toggle` for auto-routing control
+- `/zwp auto on | off | toggle` for auto-routing control
 - Public API: `SetWaypoint`, `ClearWaypoints`, `IsReady`
-- Addon enable/disable toggle via `/zw on | off | toggle | status`
 
 ---
-
 ## Author
 
 ZygorWaypoint was created and is maintained by **MorningStarGG**.

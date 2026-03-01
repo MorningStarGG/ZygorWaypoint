@@ -2,7 +2,7 @@ local NS = _G.ZygorWaypointNS
 
 local function HandleWayCommand(input)
   if not NS.IsEnabled() then
-    NS.Msg("Disabled. Use /zw on.")
+    NS.Msg("Disabled. Use /zwp on.")
     return
   end
 
@@ -65,12 +65,12 @@ local function HandleRouteCommand(cmd)
       end
     else
       NS.Msg("Auto routing is " .. (NS.DB.auto and "enabled." or "disabled."))
-      NS.Msg("Use: /zw auto on | off | toggle")
+      NS.Msg("Use: /zwp auto on | off | toggle")
     end
   elseif action == "status" then
     NS.Msg("Addon: " .. (NS.DB.enabled and "enabled" or "disabled") .. ", auto: " .. (NS.DB.auto and "on" or "off"))
   else
-    NS.Msg("/zw on | off | toggle | clear | auto <on|off|toggle> | status")
+    NS.Msg("/zwp on | off | toggle | clear | auto <on|off|toggle> | status")
   end
 end
 
@@ -80,7 +80,7 @@ function NS.RegisterSlashCommands()
   end
   NS.State.slashRegistered = true
 
-  SLASH_ZYGORWAYPOINT1 = "/zw"
+  SLASH_ZYGORWAYPOINT1 = "/zwp"
   SlashCmdList["ZYGORWAYPOINT"] = HandleRouteCommand
 
   SLASH_ZYGORWAYPOINTWAY1 = "/way"
