@@ -4,6 +4,7 @@ local frame = NS.FRAME
 frame:RegisterEvent("ADDON_LOADED")
 
 frame:SetScript("OnEvent", function(_, event, ...)
+
   if event == "ADDON_LOADED" then
     local addonName = ...
     if addonName == NS.ADDON_NAME then
@@ -20,7 +21,8 @@ frame:SetScript("OnEvent", function(_, event, ...)
         NS.ScheduleAutoRefresh(0.2)
       end
 
-      NS.Msg("Loaded. Use /way. Auto routing: " .. (NS.DB.auto and "on" or "off") .. ".")
+      local db = NS.GetDB()
+      NS.Msg("Loaded. Use /way. Auto routing: " .. (db.auto and "on" or "off") .. ".")
     end
     return
   end

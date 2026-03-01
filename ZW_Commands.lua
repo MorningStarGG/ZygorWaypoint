@@ -20,25 +20,27 @@ local function HandleWayCommand(input)
 end
 
 local function HandleRouteCommand(cmd)
+  local db = NS.GetDB()
+
   cmd = (cmd or ""):match("^%s*(.-)%s*$")
   local action, arg = cmd:match("^(%S+)%s*(.-)$")
   action = (action or ""):lower()
   arg = (arg or ""):match("^%s*(.-)%s*$"):lower()
 
   if action == "on" then
-    NS.DB.enabled = true
+    db.enabled = true
     NS.Msg("Enabled")
-    if NS.DB.auto then
+    if db.auto then
       NS.ScheduleAutoRefresh(0)
     end
   elseif action == "off" then
-    NS.DB.enabled = false
+    db.enabled = false
     NS.ClearAutoWaypoints()
     NS.Msg("Disabled")
   elseif action == "toggle" then
-    NS.DB.enabled = not NS.DB.enabled
-    NS.Msg(NS.DB.enabled and "Enabled" or "Disabled")
-    if NS.DB.enabled and NS.DB.auto then
+    db.enabled = not db.enabled
+    NS.Msg(db.enabled and "Enabled" or "Disabled")
+    if db.enabled and db.auto then
       NS.ScheduleAutoRefresh(0)
     else
       NS.ClearAutoWaypoints()
@@ -47,16 +49,16 @@ local function HandleRouteCommand(cmd)
     NS.ClearWaypoints()
   elseif action == "auto" then
     if arg == "on" then
-      NS.DB.auto = true
+      db.auto = true
       NS.Msg("Auto routing enabled.")
       NS.ScheduleAutoRefresh(0)
     elseif arg == "off" then
-      NS.DB.auto = false
+      db.auto = false
       NS.ClearAutoWaypoints()
       NS.Msg("Auto routing disabled.")
     elseif arg == "toggle" then
-      NS.DB.auto = not NS.DB.auto
-      if NS.DB.auto then
+      db.auto = not db.auto
+      if db.auto then
         NS.Msg("Auto routing enabled.")
         NS.ScheduleAutoRefresh(0)
       else
@@ -64,11 +66,11 @@ local function HandleRouteCommand(cmd)
         NS.Msg("Auto routing disabled.")
       end
     else
-      NS.Msg("Auto routing is " .. (NS.DB.auto and "enabled." or "disabled."))
+      NS.Msg("Auto routing is " .. (db.auto and "enabled." or "disabled."))
       NS.Msg("Use: /zwp auto on | off | toggle")
     end
   elseif action == "status" then
-    NS.Msg("Addon: " .. (NS.DB.enabled and "enabled" or "disabled") .. ", auto: " .. (NS.DB.auto and "on" or "off"))
+    NS.Msg("Addon: " .. (db.enabled and "enabled" or "disabled") .. ", auto: " .. (db.auto and "on" or "off"))
   else
     NS.Msg("/zwp on | off | toggle | clear | auto <on|off|toggle> | status")
   end

@@ -5,25 +5,36 @@ function NS.Msg(text)
   DEFAULT_CHAT_FRAME:AddMessage("|cff6cf0ffZygorWaypoint:|r " .. text)
 end
 
+function NS.GetDB()
+  if type(ZygorWaypointDB) ~= "table" then
+    ZygorWaypointDB = {}
+  end
+
+  NS.DB = ZygorWaypointDB
+  return ZygorWaypointDB
+end
+
+
 function NS.EnsureDBDefaults()
-  if type(NS.DB) ~= "table" then
-    NS.DB = {}
-    ZygorWaypointDB = NS.DB
+  local db = NS.GetDB()
+
+  if db.enabled == nil then
+    db.enabled = true
   end
-  if NS.DB.enabled == nil then
-    NS.DB.enabled = true
+  if db.auto == nil then
+    db.auto = true
   end
-  if NS.DB.auto == nil then
-    NS.DB.auto = true
-  end
+
 end
 
 function NS.IsEnabled()
-  return NS.DB and NS.DB.enabled
+  local db = NS.GetDB()
+  return db.enabled
 end
 
 function NS.IsAutoEnabled()
-  return NS.IsEnabled() and NS.DB.auto
+  local db = NS.GetDB()
+  return db.enabled and db.auto
 end
 
 function NS.BeginHookSuppression()
@@ -208,5 +219,3 @@ function NS.AddCandidateMap(container, mapID)
   end
   container[#container + 1] = mapID
 end
-
-NS.EnsureDBDefaults()

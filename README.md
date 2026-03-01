@@ -2,7 +2,7 @@
 
 > A lightweight waypoint bridge that routes Blizzard map targets and slash commands through Zygor's travel arrow — no TomTom required.
 
-![Version](https://img.shields.io/badge/version-1.0a-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/requires-Zygor%20Guides-red)
+![Version](https://img.shields.io/badge/version-1.0b-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/requires-Zygor%20Guides-red)
 
 ---
 
@@ -137,6 +137,11 @@ ZygorWaypoint/
 ---
 
 ## Changelog
+
+### v1.0b
+- Fixed setting persistence so `/zwp auto off` now survives `/reload` and full client restart
+- Simplified SavedVariables handling to use `ZygorWaypointDB`
+- Removed redundant persistence scaffolding/events and cleaned up DB access flow
 
 ### v1.0a
 - `/zwp status` command for quick addon and auto-routing state checks
