@@ -1,0 +1,16 @@
+## Interface: 120001
+## Title: ZygorWaypoint
+## Notes: Routes map/quest supertracking and slash waypoints directly into Zygor without need for TomTom
+## Author: MorningStarGG
+## Version: 1.0
+## IconTexture: Interface\AddOns\ZygorWaypoint\icon.png
+## SavedVariables: ZygorWaypointDB
+## RequiredDeps: ZygorGuidesViewer
+
+ZygorWaypoint.lua
+ZW_Core.lua
+ZW_Waypoint.lua
+ZW_AutoRouting.lua
+ZW_Commands.lua
+ZW_API.lua
+ZW_Init.lua
