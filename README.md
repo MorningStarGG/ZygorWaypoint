@@ -46,7 +46,9 @@ ZygorWaypoint watches Blizzard's supertracking system and automatically routes t
 | `/zwp on \| off \| toggle` | Enable or disable ZygorWaypoint |
 | `/zwp clear` | Clear the active waypoint |
 | `/zwp status` | Show addon and auto-routing status |
-| `/zwp auto on \| off \| toggle` | Control auto-routing behavior |
+| `/zwp auto on \| off \| toggle` | Control Blizzard supertracking auto-capture |
+> `/zwp auto off` only disables automatic pickup of Blizzard supertracked targets (quests/map pins). Manual targets/pins will still track normally.
+> It does **not** disable Zygor travel/pathing for manual waypoints set via `/way`.
 
 ---
 
