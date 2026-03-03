@@ -19,8 +19,9 @@ end
 NS.DB = ZygorWaypointDB
 
 NS.Constants = NS.Constants or {
-  AUTO_WAYPOINT_TYPE = "zr_auto",
+  AUTO_WAYPOINT_TYPE = "zwp_auto",
   USER_WAYPOINT_TITLE = "Map waypoint",
+  ARRIVAL_DISTANCE = 15, -- yards
 }
 
 NS.Enums = NS.Enums or {
@@ -38,4 +39,6 @@ NS.State = NS.State or {
   autoWaypointActive = false,
   lastAutoSignature = nil,
   slashRegistered = false,
+  manualWaypoint = nil,
+  manualArrivalTicker = nil,
 }

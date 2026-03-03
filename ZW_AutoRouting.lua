@@ -233,6 +233,10 @@ function NS.RouteCurrentSuperTracking()
   end
 
   if superType == enums.SUPERTRACK_TYPE.UserWaypoint then
+    -- If a manual user waypoint is already being tracked, don't duplicate it
+    if state.manualWaypoint then
+      return true
+    end
     local mapID, x, y, title = ResolveUserWaypoint()
     if mapID and x and y then
       return NS.SetAutoWaypoint(mapID, x, y, title)
@@ -356,12 +360,12 @@ function NS.InstallAutoHooks()
   if hooksecurefunc and C_Map then
     if type(C_Map.SetUserWaypoint) == "function" then
       hooksecurefunc(C_Map, "SetUserWaypoint", function(point)
-        if NS.AreHooksSuppressed() or not NS.IsAutoEnabled() then
+        if NS.AreHooksSuppressed() or not NS.IsEnabled() then
           return
         end
         local mapID, x, y, title = ResolveUserWaypoint(point)
         if mapID and x and y then
-          NS.SetAutoWaypoint(mapID, x, y, title)
+          NS.SetManualUserWaypoint(mapID, x, y, title)
         else
           NS.ScheduleAutoRefresh(0)
         end
@@ -370,9 +374,14 @@ function NS.InstallAutoHooks()
 
     if type(C_Map.ClearUserWaypoint) == "function" then
       hooksecurefunc(C_Map, "ClearUserWaypoint", function()
-        if not NS.AreHooksSuppressed() then
-          NS.ScheduleAutoRefresh(0)
+        if NS.AreHooksSuppressed() then
+          return
         end
+        if state.manualWaypoint then
+          NS.ClearManualUserWaypoint()
+          NS.ResumeGuideWaypoint()
+        end
+        NS.ScheduleAutoRefresh(0)
       end)
     end
   end

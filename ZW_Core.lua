@@ -59,6 +59,57 @@ function NS.GetPointer()
   end
 end
 
+local function GetLibRover()
+  local viewer = _G.ZygorGuidesViewer or _G.ZGV
+  if viewer and viewer.LibRover then
+    return viewer.LibRover
+  end
+  if _G.LibRover then
+    return _G.LibRover
+  end
+end
+
+local function PickMapIDFromFloors(floorMap)
+  if type(floorMap) ~= "table" then
+    return nil
+  end
+
+  local defaultFloor = tonumber(floorMap.default)
+  if defaultFloor and tonumber(floorMap[defaultFloor]) then
+    return tonumber(floorMap[defaultFloor])
+  end
+
+  if tonumber(floorMap[0]) then
+    return tonumber(floorMap[0])
+  end
+
+  local bestFloor
+  local bestMapID
+  for floor, mapID in pairs(floorMap) do
+    if type(floor) == "number" and tonumber(mapID) then
+      if bestFloor == nil or floor < bestFloor then
+        bestFloor = floor
+        bestMapID = tonumber(mapID)
+      end
+    end
+  end
+
+  return bestMapID
+end
+
+function NS.NormalizeZoneName(zoneName)
+  if not zoneName then
+    return nil
+  end
+
+  local baseZone, subZone = strsplit(":", zoneName)
+  if subZone then
+    return subZone:match("^%s*(.-)%s*$")
+  end
+
+  return baseZone and baseZone:match("^%s*(.-)%s*$")
+end
+
 function NS.NormalizeMapID(mapID)
   mapID = tonumber(mapID)
   if not mapID then
@@ -80,6 +131,51 @@ function NS.NormalizeMapID(mapID)
   end
 
   return mapID
+end
+
+function NS.GetMapIDByNameFromZygor(zoneName)
+  zoneName = NS.NormalizeZoneName(zoneName)
+  if not zoneName or zoneName == "" then
+    return nil
+  end
+
+  local rover = GetLibRover()
+  if not rover then
+    return nil
+  end
+
+  if type(rover.GetMapByNameFloor) == "function" then
+    local ok, mapID = pcall(rover.GetMapByNameFloor, rover, zoneName)
+    mapID = ok and mapID or nil
+    mapID = mapID and mapID ~= false and NS.NormalizeMapID(mapID) or nil
+    if mapID then
+      return mapID
+    end
+  end
+
+  local byName = rover.data and rover.data.MapIDsByName
+  if type(byName) ~= "table" then
+    return nil
+  end
+
+  local mapData = byName[zoneName]
+  if not mapData then
+    local target = zoneName:lower()
+    for name, data in pairs(byName) do
+      if type(name) == "string" and name:lower() == target then
+        mapData = data
+        break
+      end
+    end
+  end
+
+  if type(mapData) == "number" then
+    return NS.NormalizeMapID(mapData)
+  end
+
+  if type(mapData) == "table" then
+    return NS.NormalizeMapID(PickMapIDFromFloors(mapData))
+  end
 end
 
 function NS.GetCurrentMapID()
@@ -142,23 +238,45 @@ function NS.BuildMapCache()
 end
 
 function NS.GetMapIDByName(zoneName)
+  zoneName = NS.NormalizeZoneName(zoneName)
   if not zoneName or zoneName == "" then
     return nil
+  end
+
+  local zygorMapID = NS.GetMapIDByNameFromZygor(zoneName)
+  if zygorMapID then
+    return zygorMapID
   end
 
   if not state.isMapCacheBuilt then
     NS.BuildMapCache()
   end
 
-  local baseZone, subZone = strsplit(":", zoneName)
-  if subZone then
-    zoneName = subZone:match("^%s*(.-)%s*$")
-  else
-    zoneName = baseZone
-  end
-
   local mapID = zoneName and state.mapCache[zoneName:lower()] or nil
   return NS.NormalizeMapID(mapID)
+end
+
+function NS.ResolveCommandMapID(mapID)
+  mapID = NS.NormalizeMapID(mapID)
+  if not mapID then
+    return nil
+  end
+
+  local rover = GetLibRover()
+  local knownMap = rover and rover.data and rover.data.MapNamesByID and rover.data.MapNamesByID[mapID]
+  if knownMap then
+    return mapID
+  end
+
+  local mapInfo = C_Map.GetMapInfo(mapID)
+  if mapInfo and mapInfo.name then
+    local fallbackMapID = NS.GetMapIDByName(mapInfo.name)
+    if fallbackMapID then
+      return fallbackMapID
+    end
+  end
+
+  return mapID
 end
 
 function NS.NormalizeCoords(x, y)
