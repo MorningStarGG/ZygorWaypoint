@@ -41,4 +41,8 @@ NS.State = NS.State or {
   slashRegistered = false,
   manualWaypoint = nil,
   manualArrivalTicker = nil,
+  diamondHooksInstalled = false,
+  diamondRetryTicker = nil,
+  lastDiamondSignature = nil,
+  diamondOwned = false,
 }

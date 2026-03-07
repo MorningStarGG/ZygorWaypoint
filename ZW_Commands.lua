@@ -1,5 +1,9 @@
 local NS = _G.ZygorWaypointNS
 
+local function IsSyncConfiguredOn(db)
+  return db.sync ~= false
+end
+
 local function HandleWayCommand(input)
   if not NS.IsEnabled() then
     NS.Msg("Disabled. Use /zwp on.")
@@ -29,6 +33,10 @@ local function HandleRouteCommand(cmd)
 
   if action == "on" then
     db.enabled = true
+    if IsSyncConfiguredOn(db) then
+      NS.EnsureDiamondSyncHooks()
+      NS.SyncCurrentArrowToDiamond()
+    end
     NS.Msg("Enabled")
     if db.auto then
       NS.ScheduleAutoRefresh(0)
@@ -36,14 +44,22 @@ local function HandleRouteCommand(cmd)
   elseif action == "off" then
     db.enabled = false
     NS.ClearAutoWaypoints()
+    NS.ClearSyncedDiamondWaypoint("addon disabled")
     NS.Msg("Disabled")
   elseif action == "toggle" then
     db.enabled = not db.enabled
     NS.Msg(db.enabled and "Enabled" or "Disabled")
-    if db.enabled and db.auto then
-      NS.ScheduleAutoRefresh(0)
+    if db.enabled then
+      if IsSyncConfiguredOn(db) then
+        NS.EnsureDiamondSyncHooks()
+        NS.SyncCurrentArrowToDiamond()
+      end
+      if db.auto then
+        NS.ScheduleAutoRefresh(0)
+      end
     else
       NS.ClearAutoWaypoints()
+      NS.ClearSyncedDiamondWaypoint("addon disabled")
     end
   elseif action == "clear" then
     NS.ClearWaypoints()
@@ -69,10 +85,50 @@ local function HandleRouteCommand(cmd)
       NS.Msg("Auto routing is " .. (db.auto and "enabled." or "disabled."))
       NS.Msg("Use: /zwp auto on | off | toggle")
     end
+  elseif action == "sync" then
+    if arg == "on" then
+      db.sync = true
+      if NS.IsEnabled() then
+        NS.EnsureDiamondSyncHooks()
+        NS.SyncCurrentArrowToDiamond()
+      end
+      NS.Msg("3D sync enabled.")
+    elseif arg == "off" then
+      db.sync = false
+      NS.ClearSyncedDiamondWaypoint("sync disabled")
+      NS.Msg("3D sync disabled.")
+    elseif arg == "toggle" then
+      db.sync = not IsSyncConfiguredOn(db)
+      if IsSyncConfiguredOn(db) then
+        if NS.IsEnabled() then
+          NS.EnsureDiamondSyncHooks()
+          NS.SyncCurrentArrowToDiamond()
+        end
+        NS.Msg("3D sync enabled.")
+      else
+        NS.ClearSyncedDiamondWaypoint("sync disabled")
+        NS.Msg("3D sync disabled.")
+      end
+    else
+      NS.Msg("3D sync is " .. (IsSyncConfiguredOn(db) and "enabled." or "disabled."))
+      NS.Msg("Use: /zwp sync on | off | toggle")
+    end
   elseif action == "status" then
-    NS.Msg("Addon: " .. (db.enabled and "enabled" or "disabled") .. ", auto: " .. (db.auto and "on" or "off"))
+    local syncState = IsSyncConfiguredOn(db) and "on" or "off"
+    local syncReady = (NS.State and NS.State.diamondHooksInstalled) and "ready" or "waiting"
+    NS.Msg(
+      "Addon: "
+        .. (db.enabled and "enabled" or "disabled")
+        .. ", auto: "
+        .. (db.auto and "on" or "off")
+        .. ", sync: "
+        .. syncState
+        .. " ("
+        .. syncReady
+        .. ")"
+    )
   else
-    NS.Msg("/zwp on | off | toggle | clear | auto <on|off|toggle> | status")
+    NS.Msg("/zwp on | off | toggle | clear | auto <on|off|toggle> | sync <on|off|toggle> | status")
   end
 end
 

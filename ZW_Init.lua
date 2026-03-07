@@ -10,7 +10,11 @@ frame:SetScript("OnEvent", function(_, event, ...)
     if addonName == NS.ADDON_NAME then
       NS.EnsureDBDefaults()
       NS.InstallAutoHooks()
+      NS.EnsureDiamondSyncHooks()
       NS.RegisterSlashCommands()
+      if NS.IsSyncEnabled() then
+        NS.SyncCurrentArrowToDiamond()
+      end
 
       frame:RegisterEvent("QUEST_WATCH_UPDATE")
       frame:RegisterEvent("QUEST_POI_UPDATE")

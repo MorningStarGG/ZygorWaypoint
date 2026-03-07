@@ -24,6 +24,9 @@ function NS.EnsureDBDefaults()
   if db.auto == nil then
     db.auto = true
   end
+  if db.sync == nil then
+    db.sync = true
+  end
 
 end
 
@@ -35,6 +38,11 @@ end
 function NS.IsAutoEnabled()
   local db = NS.GetDB()
   return db.enabled and db.auto
+end
+
+function NS.IsSyncEnabled()
+  local db = NS.GetDB()
+  return db.enabled and db.sync ~= false
 end
 
 function NS.BeginHookSuppression()
@@ -337,3 +345,5 @@ function NS.AddCandidateMap(container, mapID)
   end
   container[#container + 1] = mapID
 end
+
+

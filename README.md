@@ -2,7 +2,7 @@
 
 > A lightweight waypoint bridge that routes Blizzard map targets and slash commands through Zygor's travel arrow — no TomTom required.
 
-![Version](https://img.shields.io/badge/version-1.1-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/requires-Zygor%20Guides-red)
+![Version](https://img.shields.io/badge/version-1.2-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/requires-Zygor%20Guides-red)
 
 ---
 
@@ -41,15 +41,17 @@ ZygorWaypoint watches Blizzard's supertracking system and automatically routes t
 
 ### ⚙️ Addon Control Commands
 
-| Command                         | Description                        |
-| ------------------------------- | ---------------------------------- |
-| `/zwp on \| off \| toggle`      | Enable or disable ZygorWaypoint    |
-| `/zwp clear`                    | Clear the active waypoint          |
-| `/zwp status`                   | Show addon and auto-routing status |
-| `/zwp auto on \| off \| toggle` | Control auto-routing behavior      |
+| Command                         | Description                                     |
+| ------------------------------- | ----------------------------------------------- |
+| `/zwp on \| off \| toggle`      | Enable or disable ZygorWaypoint                 |
+| `/zwp clear`                    | Clear the active waypoint                       |
+| `/zwp status`                   | Show addon, auto-routing, and 3D sync status   |
+| `/zwp auto on \| off \| toggle` | Control automatic waypoint capture behavior     |
+| `/zwp sync on \| off \| toggle` | Control Blizzard supertracking (3D diamond) sync |
+
+> `auto off` only disables automatic capture from quest/content tracking. Manual `/way`, map clicks, and addon-set waypoints still route through Zygor.
 
 ---
-
 ### 🧩 Developer API
 
 ZygorWaypoint exposes a global API for other addons to integrate with:
@@ -135,6 +137,7 @@ WindTools includes a **Waypoint Parse** feature (found under `ElvUI → WindTool
 ```
 ZygorWaypoint/
 ├── ZW_Core.lua          # Core addon framework
+├── ZW_DiamondSync.lua   # Blizzard supertracking / 3D diamond sync
 ├── ZW_Waypoint.lua      # Waypoint logic
 ├── ZW_AutoRouting.lua   # Blizzard supertracking integration
 ├── ZW_Commands.lua      # Slash command handling
@@ -145,6 +148,11 @@ ZygorWaypoint/
 ---
 
 ## Changelog
+
+### v1.2
+
+* Added `/zwp sync on | off | toggle` to control whether the Blizzard supertracked waypoint (3D diamond) mirrors the active Zygor arrow target
+* `/zwp status` now reports sync state in addition to addon and auto-routing state
 
 ### v1.1
 
