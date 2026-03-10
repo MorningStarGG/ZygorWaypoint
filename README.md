@@ -1,4 +1,4 @@
-# ZygorWaypoint
+﻿# ZygorWaypoint
 
 > A bridge addon that lets **Zygor Guides** and **TomTom** work together --- using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
@@ -215,7 +215,7 @@ These changes simplify the addon and allow ZygorWaypoint to focus entirely on it
 
 - Packaging:
   - dependencies are now hard-required: `TomTom`, `ZygorGuidesViewer`.
-- Commands root is still `/zwp`.
+- Command root is still `/zwp`.
   - Subcommands: `on`, `off`, `status`, `debug`, `skin`, `scale`, `options`, `routing`, `align`, `override`.
 - Bridge features:
   - Zygor waypoint extraction -> TomTom Crazy Arrow updates.
