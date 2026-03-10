@@ -1,17 +1,19 @@
 ## Interface: 120001
 ## Title: ZygorWaypoint
-## Notes: Routes map/quest supertracking and slash waypoints directly into Zygor without the need for TomTom
+## Notes: Bridges Zygor waypoints to TomTom's Crazy Arrow and routes TomTom waypoints through Zygor Travel System.
 ## Author: MorningStarGG
-## Version: 1.2
-## IconTexture: Interface\AddOns\ZygorWaypoint\icon.png
+## Version: 2.0.0
+## IconTexture: Interface\AddOns\ZygorWaypoint\media\icon.png
 ## SavedVariables: ZygorWaypointDB
-## RequiredDeps: ZygorGuidesViewer
+## RequiredDeps: TomTom, ZygorGuidesViewer
 
 ZygorWaypoint.lua
-ZW_Core.lua
-ZW_DiamondSync.lua
-ZW_Waypoint.lua
-ZW_AutoRouting.lua
-ZW_Commands.lua
-ZW_API.lua
-ZW_Init.lua
+ZWP_Core.lua
+ZWP_DB.lua
+ZWP_ZygorSource.lua
+ZWP_TomTomBridge.lua
+ZWP_Routing.lua
+ZWP_ThemeStarlight.lua
+ZWP_UI.lua
+ZWP_Commands.lua
+ZWP_Init.lua
