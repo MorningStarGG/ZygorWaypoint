@@ -21,10 +21,14 @@ f:SetScript("OnEvent", function(_, ev, arg1)
             NS.After(0.1, NS.ApplyTomTomArrowDefaults)
             NS.After(0.2, NS.HookTomTomRouting)
         elseif arg1 == "ZygorGuidesViewer" then
+            NS.After(0.1, NS.HookZygorGuideGuards)
+            NS.After(0.1, NS.HookZygorWhoWhereFallbacks)
             NS.After(0.1, NS.HookZygorArrowTextures)
         end
     elseif ev == "PLAYER_LOGIN" then
         NS.HookZygorTickHooks()
+        NS.After(0.5, NS.HookZygorGuideGuards)
+        NS.After(0.5, NS.HookZygorWhoWhereFallbacks)
         NS.After(0.5, NS.ApplyTomTomArrowDefaults)
         NS.After(0.5, NS.HookZygorArrowTextures)
         NS.After(0.6, NS.HookTomTomRouting)

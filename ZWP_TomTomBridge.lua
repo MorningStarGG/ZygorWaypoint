@@ -15,6 +15,7 @@ state.bridge = state.bridge or {
     unifiedDragHooked = false,
     zygorTickHooked = false,
     zygorArrowHooked = false,
+    zygorGuideGuardsHooked = false,
     guideVisibilityState = nil,
     heartbeatFrame = nil,
     heartbeatElapsed = 0,
@@ -115,6 +116,16 @@ local function RemoveBridgeWaypoint()
         TomTom:RemoveWaypoint(bridge.lastUID)
     end
     bridge.lastUID = nil
+
+    if C_Map and C_Map.HasUserWaypoint and C_Map.HasUserWaypoint() then
+        C_SuperTrack.SetSuperTrackedUserWaypoint(false)
+        C_Map.ClearUserWaypoint()
+    end
+end
+
+local function ClearBridgeMirror()
+    RemoveBridgeWaypoint()
+    ResetAppliedWaypointState()
 end
 
 local function ClearHiddenGuideWaypoints()
@@ -142,6 +153,112 @@ local function RefreshVisibleGuideWaypoints()
     local P = Z.Pointer
     if P and type(P.UpdateArrowVisibility) == "function" then
         P:UpdateArrowVisibility()
+    end
+end
+
+local function GetActiveManualDestination()
+    local Z = NS.ZGV()
+    local P = Z and Z.Pointer
+    local destination = P and P.DestinationWaypoint
+    if destination and destination.type == "manual" then
+        return destination
+    end
+end
+
+local function IsGuideHiddenState(visibilityState)
+    return visibilityState and visibilityState ~= "visible"
+end
+
+local function ShouldAllowHiddenArrowWaypoint(waypoint)
+    if not waypoint then return true end
+    if waypoint.type == "manual" or waypoint.type == "corpse" then
+        return true
+    end
+
+    local manualDestination = GetActiveManualDestination()
+    if not manualDestination then
+        return false
+    end
+
+    if waypoint == manualDestination then
+        return true
+    end
+
+    if waypoint.type == "route" then
+        return true
+    end
+
+    local surrogate = waypoint.surrogate_for
+    if surrogate and surrogate.type == "manual" then
+        return true
+    end
+
+    local sourceWaypoint = waypoint.pathnode and waypoint.pathnode.waypoint
+    if sourceWaypoint and sourceWaypoint.type == "manual" then
+        return true
+    end
+
+    return false
+end
+
+local function IsGuideGoalWaypoint(waypoint)
+    if not waypoint then return false end
+    if waypoint.goal then return true end
+
+    local surrogate = waypoint.surrogate_for
+    if surrogate and surrogate.goal then
+        return true
+    end
+
+    local pathWaypoint = waypoint.pathnode and waypoint.pathnode.waypoint
+    if pathWaypoint and pathWaypoint.goal then
+        return true
+    end
+
+    return false
+end
+
+local function RestoreHiddenManualArrowIfNeeded()
+    local Z = NS.ZGV()
+    if not Z or not Z.Pointer then return end
+
+    local P = Z.Pointer
+    local destination = P.DestinationWaypoint
+    if not destination or destination.type ~= "manual" then return end
+
+    local current = P.ArrowFrame and P.ArrowFrame.waypoint
+    if not IsGuideGoalWaypoint(current) then
+        return
+    end
+
+    if type(P.FindTravelPath) == "function" then
+        P:FindTravelPath(destination)
+    elseif type(P.ShowArrow) == "function" then
+        P:ShowArrow(destination)
+    end
+end
+
+local function HideUnexpectedHiddenGuideArrow()
+    local Z = NS.ZGV()
+    if not Z or not Z.Pointer then return end
+
+    local af = Z.Pointer.ArrowFrame
+    local waypoint = af and af.waypoint
+    if waypoint and waypoint.type ~= "manual" and type(Z.Pointer.HideArrow) == "function" then
+        -- The wrappers are the primary fix. This only scrubs stale guide arrows
+        -- that can survive login/reload before Zygor fully settles.
+        Z.Pointer:HideArrow()
+    end
+end
+
+local function ShowManualDestinationWhileHidden(pointer, destination)
+    if not pointer or not destination then return end
+
+    if type(pointer.FindTravelPath) == "function" then
+        return pointer:FindTravelPath(destination)
+    end
+    if type(pointer.ShowArrow) == "function" then
+        return pointer:ShowArrow(destination)
     end
 end
 
@@ -177,8 +294,7 @@ local function SyncGuideVisibilityState()
 
     if current == "hidden-idle" then
         ClearHiddenGuideWaypoints()
-        RemoveBridgeWaypoint()
-        ResetAppliedWaypointState()
+        ClearBridgeMirror()
     elseif current == "visible" and previous and previous ~= "visible" then
         RefreshVisibleGuideWaypoints()
     end
@@ -201,6 +317,18 @@ local function pushTomTom(m, x, y, title, src)
     if bridge.lastUID and TomTom.RemoveWaypoint then
         TomTom:RemoveWaypoint(bridge.lastUID)
         bridge.lastUID = nil
+    end
+
+    if TomTom.waypoints and TomTom.waypoints[m] then
+        local dupes = {}
+        for key, wp in pairs(TomTom.waypoints[m]) do
+            if wp[2] == x and wp[3] == y and not wp.fromZWP then
+                dupes[#dupes + 1] = wp
+            end
+        end
+        for _, wp in ipairs(dupes) do
+            TomTom:RemoveWaypoint(wp)
+        end
     end
 
     local t = title or " "
@@ -333,13 +461,17 @@ function NS.TickUpdate()
     local visibilityState = SyncGuideVisibilityState()
     if visibilityState == "hidden-idle" then
         if bridge.lastUID or bridge.lastSig or bridge.lastAppliedSource or bridge.pendingFallbackSwitch then
-            RemoveBridgeWaypoint()
-            ResetAppliedWaypointState()
+            ClearBridgeMirror()
         end
+        HideUnexpectedHiddenGuideArrow()
         return
     end
 
     local pointerOnly = (visibilityState == "hidden-manual")
+    if pointerOnly then
+        RestoreHiddenManualArrowIfNeeded()
+    end
+
     local m, x, y, title, src = NS.ExtractWaypointFromZygor(pointerOnly)
     if not (m and x and y) then return end
     if ShouldSuppressDestinationFallback(src, title, m, pointerOnly) then return end
@@ -358,7 +490,9 @@ function NS.HookZygorTickHooks()
     if not Z then return end
 
     local P = Z.Pointer
-    for _, fn in ipairs({ "FocusStep", "SetCurrentStep", "GoalProgress", "UpdateFrame" }) do
+    -- UpdateFrame is a hot redraw path while the guide is visible, so let the
+    -- bridge heartbeat handle it instead of calling TickUpdate on every redraw.
+    for _, fn in ipairs({ "FocusStep", "SetCurrentStep", "GoalProgress" }) do
         if type(Z[fn]) == "function" then
             hooksecurefunc(Z, fn, function() NS.TickUpdate() end)
         end
@@ -369,6 +503,57 @@ function NS.HookZygorTickHooks()
     end
 
     bridge.zygorTickHooked = true
+end
+
+function NS.HookZygorGuideGuards()
+    if bridge.zygorGuideGuardsHooked then return end
+
+    local Z = NS.ZGV()
+    if not Z or not Z.Pointer then return end
+    local P = Z.Pointer
+
+    if type(Z.ShowWaypoints) == "function" then
+        local originalShowWaypoints = Z.ShowWaypoints
+        Z.ShowWaypoints = function(self, command, ...)
+            local visibilityState = GetGuideVisibilityState()
+            if IsGuideHiddenState(visibilityState) then
+                if command == "clear" then
+                    return originalShowWaypoints(self, command, ...)
+                end
+
+                local manualDestination = GetActiveManualDestination()
+                if manualDestination then
+                    return ShowManualDestinationWhileHidden(self.Pointer, manualDestination)
+                else
+                    if self.Pointer and type(self.Pointer.HideArrow) == "function" then
+                        self.Pointer:HideArrow()
+                    end
+                end
+                return
+            end
+
+            return originalShowWaypoints(self, command, ...)
+        end
+    end
+
+    if type(P.ShowArrow) == "function" then
+        local originalShowArrow = P.ShowArrow
+        P.ShowArrow = function(self, waypoint, ...)
+            local visibilityState = GetGuideVisibilityState()
+            if IsGuideHiddenState(visibilityState) then
+                if not ShouldAllowHiddenArrowWaypoint(waypoint) then
+                    if type(self.HideArrow) == "function" then
+                        self:HideArrow()
+                    end
+                    return
+                end
+            end
+
+            return originalShowArrow(self, waypoint, ...)
+        end
+    end
+
+    bridge.zygorGuideGuardsHooked = true
 end
 
 function NS.StartBridgeHeartbeat()

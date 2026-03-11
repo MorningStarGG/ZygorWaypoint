@@ -163,8 +163,8 @@ local function GetDirectionColor(themeDef, angle)
 end
 
 local function GetNavigationTexCoord(theme)
-    if theme.lastNavTexCoord then
-        return unpack(theme.lastNavTexCoord)
+    if theme.lastNavLeft then
+        return theme.lastNavLeft, theme.lastNavRight, theme.lastNavTop, theme.lastNavBottom
     end
 
     if not theme.navCoordResolver then
@@ -173,7 +173,10 @@ local function GetNavigationTexCoord(theme)
 
     local angle = theme.lastAngle or 0
     local left, right, top, bottom = theme.navCoordResolver(angle)
-    theme.lastNavTexCoord = { left, right, top, bottom }
+    theme.lastNavLeft = left
+    theme.lastNavRight = right
+    theme.lastNavTop = top
+    theme.lastNavBottom = bottom
     return left, right, top, bottom
 end
 
@@ -340,7 +343,10 @@ local function BuildTomTomZygorTheme(themeDef)
 
         self.lastAngle = angle
         local left, right, top, bottom = self.navCoordResolver(angle)
-        self.lastNavTexCoord = { left, right, top, bottom }
+        self.lastNavLeft = left
+        self.lastNavRight = right
+        self.lastNavTop = top
+        self.lastNavBottom = bottom
         arrow:SetTexture(self.navTexture)
         arrow:SetTexCoord(left, right, top, bottom)
 

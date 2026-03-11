@@ -1,4 +1,21 @@
 local NS = _G.ZygorWaypointNS
+local POINTER_WAYPOINT_KEYS = { "DestinationWaypoint", "waypoint", "current_waypoint" }
+
+local function sanitizeTitle(title)
+    title = title or " "
+    title = title:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    title = title:gsub("%s*%d+[%.,]%s*%d+%s*,?%s*", " ")
+    title = title:gsub("%s*%d+[%.,]%s*%d+%s*$", " ")
+    title = title:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+    if title == "" then
+        title = " "
+    end
+    return title
+end
+
+local function chooseWaypointTitle(waypoint)
+    return sanitizeTitle(waypoint and (waypoint.arrowtitle or waypoint.title) or " ")
+end
 
 local function chooseStepishTitle(Z, waypoint)
     local step = Z and Z.CurrentStep
@@ -8,12 +25,14 @@ local function chooseStepishTitle(Z, waypoint)
         gtitle = g and g.title
     end
 
-    local title = gtitle or (step and step.title) or (waypoint and waypoint.title) or " "
-    title = title:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-    title = title:gsub("%s*%d+[%.,]%s*%d+%s*,?%s*", " ")
-    title = title:gsub("%s*%d+[%.,]%s*%d+%s*$", " ")
-    title = title:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
-    return title
+    return sanitizeTitle(gtitle or (step and step.title) or (waypoint and (waypoint.arrowtitle or waypoint.title)) or " ")
+end
+
+local function chooseTitle(pointerOnly, Z, waypoint)
+    if pointerOnly then
+        return chooseWaypointTitle(waypoint)
+    end
+    return chooseStepishTitle(Z, waypoint)
 end
 
 local function readWaypointCoords(w)
@@ -43,7 +62,7 @@ function NS.ExtractWaypointFromZygor(pointerOnly)
         local w = P.ArrowFrame.waypoint
         local m, x, y = readWaypointCoords(w)
         if m and x and y then
-            return m, x, y, chooseStepishTitle(Z, w), "pointer.ArrowFrame.waypoint"
+            return m, x, y, chooseTitle(pointerOnly, Z, w), "pointer.ArrowFrame.waypoint"
         end
     end
 
@@ -51,16 +70,16 @@ function NS.ExtractWaypointFromZygor(pointerOnly)
         local w = P.arrow.waypoint
         local m, x, y = readWaypointCoords(w)
         if m and x and y then
-            return m, x, y, chooseStepishTitle(Z, w), "pointer.arrow.waypoint"
+            return m, x, y, chooseTitle(pointerOnly, Z, w), "pointer.arrow.waypoint"
         end
     end
 
     if P then
-        for _, key in ipairs({ "DestinationWaypoint", "waypoint", "current_waypoint" }) do
+        for _, key in ipairs(POINTER_WAYPOINT_KEYS) do
             local w = P[key]
             local m, x, y = readWaypointCoords(w)
             if m and x and y then
-                return m, x, y, chooseStepishTitle(Z, w), "pointer." .. key
+                return m, x, y, chooseTitle(pointerOnly, Z, w), "pointer." .. key
             end
         end
 
@@ -68,7 +87,7 @@ function NS.ExtractWaypointFromZygor(pointerOnly)
             local w = P.waypoints[1]
             local m, x, y = readWaypointCoords(w)
             if m and x and y then
-                return m, x, y, chooseStepishTitle(Z, w), "pointer.waypoints[1]"
+                return m, x, y, chooseTitle(pointerOnly, Z, w), "pointer.waypoints[1]"
             end
         end
     end

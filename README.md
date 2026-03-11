@@ -137,6 +137,9 @@ Available commands:
 -   `/zwp routing on|off|toggle` --- Control TomTom → Zygor routing
 -   `/zwp align on|off` --- Toggle arrow alignment
 -   `/zwp override on|off` --- Override TomTom clear-distance behavior
+-   `/zwp search vendor|auctioneer|banker|innkeeper|flightmaster|mailbox|repair|transmogrifier|void storage` --- Route to the nearest matching NPC/service
+-   `/zwp search trainer <profession> | workshop <profession>` --- Route to the nearest profession trainer or workshop
+-   `/zwp search help` --- List supported search targets
 
 ------------------------------------------------------------------------
 
@@ -217,6 +220,30 @@ These changes simplify the addon and allow ZygorWaypoint to focus entirely on it
 ------------------------------------------------------------------------
 
 # Changelog
+
+## 2.2
+- **Hidden guide / waypoint control**
+  - Added runtime guards around Zygor's guide waypoint rebuild path so guide-step navigation text remain suppressed while the guide viewer is hidden. This fixes cases where guide steps could still attempt to take control when the viewer was hidden.
+  - Manual destinations remain fully functional while the guide is hidden, using the Zygor navigation text and TomTom arrow as before.
+  - Improved hidden-guide cleanup during login and reload, resulting in more reliable bridge-state resets.
+
+- **Pin / waypoint cleanup**
+  - Clearing the mirrored bridge waypoint now also clears the Blizzard user waypoint and supertracking state.
+  - Duplicate TomTom pins at the active bridge coordinates are now removed before applying the mirrored waypoint, fixing cases where pins were not being removed properly when a waypoint was cleared.
+
+- **Performance / memory**
+  - Removed per-frame table allocations in the custom Zygor → TomTom skins by caching navigation texture coordinates in scalar fields.
+  - Bridge sync updates are no longer triggered from Zygor's hot `UpdateFrame()` redraw path and instead rely on the bridge heartbeat for visible-guide refreshes.
+  - Reduced repeated allocation churn during Zygor waypoint extraction and title cleanup.
+
+- **Search commands**
+  - Added `/zwp search` support for Zygor service lookups including vendor, auctioneer, banker, innkeeper, flightmaster, mailbox, repair, riding trainer, stable master, transmogrifier, and void storage.
+  - Added profession trainer and profession workshop searches, along with `/zwp search help`.
+  - Added retail-friendly aliases such as `ah`, `auction`, `bank`, `inn`, `mog`, `tmog`, `store`, `repairs`, and `stables`.
+  - Vendor searches now fall back to `Repair` if Zygor's vendor lookup fails to place a waypoint, including when the search originates from Zygor's menu. ZWP will tell you when this occurs.
+
+- **Documentation**
+  - Updated the README command list to include the new search commands.
 
 ## 2.1b
 - **Arrow theme fixes**:
