@@ -162,6 +162,21 @@ local function GetDirectionColor(themeDef, angle)
     return r, g, b
 end
 
+local function GetNavigationTexCoord(theme)
+    if theme.lastNavTexCoord then
+        return unpack(theme.lastNavTexCoord)
+    end
+
+    if not theme.navCoordResolver then
+        return 0, 1, 0, 1
+    end
+
+    local angle = theme.lastAngle or 0
+    local left, right, top, bottom = theme.navCoordResolver(angle)
+    theme.lastNavTexCoord = { left, right, top, bottom }
+    return left, right, top, bottom
+end
+
 local function ApplyNavigationLayout(theme, button)
     local themeDef = theme.themeDef
     local scale = GetThemeScale()
@@ -177,8 +192,8 @@ local function ApplyNavigationLayout(theme, button)
     arrow:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
     arrow:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 0, -navDrop)
     arrow:SetTexture(theme.navTexture)
-    arrow:SetTexCoord(0, 1, 0, 1)
-    arrow:SetVertexColor(1, 1, 1, 1)
+    arrow:SetTexCoord(GetNavigationTexCoord(theme))
+    arrow:SetVertexColor(GetDirectionColor(themeDef, theme.lastAngle or 0))
     arrow:Show()
 
     if theme.specularTexture then
@@ -187,7 +202,7 @@ local function ApplyNavigationLayout(theme, button)
         specular:SetPoint("TOPLEFT", button, "TOPLEFT", 0, 0)
         specular:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 0, -navDrop)
         specular:SetTexture(theme.specularTexturePath)
-        specular:SetTexCoord(0, 1, 0, 1)
+        specular:SetTexCoord(GetNavigationTexCoord(theme))
         specular:SetVertexColor(1, 1, 1, 1)
         specular:SetAlpha(0.7)
         specular:Show()
@@ -323,7 +338,9 @@ local function BuildTomTomZygorTheme(themeDef)
         local arrow = self.arrowTexture
         if not arrow then return end
 
+        self.lastAngle = angle
         local left, right, top, bottom = self.navCoordResolver(angle)
+        self.lastNavTexCoord = { left, right, top, bottom }
         arrow:SetTexture(self.navTexture)
         arrow:SetTexCoord(left, right, top, bottom)
 

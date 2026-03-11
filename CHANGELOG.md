@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1b
+- **Arrow theme fixes**:
+  - Fixed an intermittent issue where Starlight or Stealth could briefly show the full arrow sprite sheet during waypoint updates or theme refreshes.
+
 ## 2.1a
 - **Zygor Arrow themes**:
   - Added Zygor Stealth TomTom skin alongside Starlight.
