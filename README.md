@@ -2,7 +2,7 @@
 
 > A bridge addon that lets **Zygor Guides** and **TomTom** work together --- using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-2.0-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/requires-Zygor%20Guides%20%2B%20TomTom-red)
+![Version](https://img.shields.io/badge/version-2.1-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/requires-Zygor%20Guides%20%2B%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -66,13 +66,21 @@ Zygor guide steps automatically update **TomTom's Crazy Arrow**.
 
 This lets you follow Zygor guides while using TomTom's arrow instead of Zygor's arrow display.
 
+ZygorWaypoint also manages arrow visibility independently from the guide frame:
+
+- When the **Zygor guide frame is hidden**, the current guide-step waypoint is cleared.
+- **TomTom's Crazy Arrow and Zygor Travel System routing remain active**, but guide step goals are not shown.
+- Manual waypoints or TomTom-created waypoints continue to function normally.
+- When the guide becomes visible again, guide step waypoints refresh automatically. If a manual waypoint or active travel route is in progress, the guide step waypoint will resume only after that destination/waypoint is completed or cleared.
+- Zygor's internal `hidearrowwithguide` setting is overridden so arrow visibility stays under ZygorWaypoint control.
+
 ------------------------------------------------------------------------
 
 ## TomTom → Zygor Travel Routing
 
 ZygorWaypoint can optionally (enabled by default) route **TomTom waypoints** through **Zygor's Travel System**.
 
-When a waypoint is created through **TomTom** (either manually or by another addon) ZygorWaypoint sends that destination to Zygor so it can calculate the best route to reach it.
+When a waypoint is created through **TomTom** (either manually or by another addon), ZygorWaypoint sends that destination to Zygor so it can calculate the best route to reach it.
 
 Zygor's travel system may include:
 
@@ -121,8 +129,6 @@ Command root:
 
 Available commands:
 
--   `/zwp on` --- Enable the addon
--   `/zwp off` --- Disable the addon
 -   `/zwp status` --- Show addon status
 -   `/zwp debug` --- Toggle debug output
 -   `/zwp options` --- Open addon options
@@ -211,12 +217,31 @@ These changes simplify the addon and allow ZygorWaypoint to focus entirely on it
 
 # Changelog
 
-## 2.0.0
+## 2.1
+
+- **Guide visibility handling**
+  - Clears the active guide step waypoint when the Zygor guide frame is hidden.
+  - TomTom Crazy Arrow and Zygor Travel System text remain active while the guide is hidden, but guide step goals are disabled.
+  - Manual waypoints and Zygor travel routing continue to function normally while the guide is hidden.
+  - Guide step waypoints refresh automatically when the guide becomes visible again or when a manual waypoint is completed or cleared.
+  - Forces Zygor's `hidearrowwithguide` policy off so arrow visibility remains under ZygorWaypoint control.
+
+- **Command / settings cleanup**
+  - Removed obsolete `/zwp on` and `/zwp off` commands.
+  - Legacy `enabled` values are automatically cleared from SavedVariables on load.
+
+- **Options / UI**
+  - Resolved Lua errors triggered when opening the options panel that caused `/zwp options` command to not open the settings panel.
+
+- **Documentation**
+  - Updated command and documentation text to match the current `/zwp` command set.
+
+## 2.0
 
 - Packaging:
   - dependencies are now hard-required: `TomTom`, `ZygorGuidesViewer`.
 - Command root is still `/zwp`.
-  - Subcommands: `on`, `off`, `status`, `debug`, `skin`, `scale`, `options`, `routing`, `align`, `override`.
+  - Subcommands: `status`, `debug`, `skin`, `scale`, `options`, `routing`, `align`, `override`.
 - Bridge features:
   - Zygor waypoint extraction -> TomTom Crazy Arrow updates.
   - TomTom waypoint routing -> Zygor travel/pathing -> TomTom Crazy Arrow.

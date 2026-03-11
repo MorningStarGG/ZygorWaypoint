@@ -15,6 +15,7 @@ state.bridge = state.bridge or {
     unifiedDragHooked = false,
     zygorTickHooked = false,
     zygorArrowHooked = false,
+    guideVisibilityState = nil,
     heartbeatFrame = nil,
     heartbeatElapsed = 0,
 }
@@ -79,6 +80,107 @@ function NS.HookUnifiedArrowDrag()
     tFrame:EnableMouse(false)
 
     bridge.unifiedDragHooked = true
+end
+
+function NS.EnsureGuideArrowVisibilityPolicy()
+    local Z = NS.ZGV()
+    if not Z or not Z.db or not Z.db.profile then return end
+
+    if Z.db.profile.hidearrowwithguide == false then return end
+
+    Z.db.profile.hidearrowwithguide = false
+
+    local P = Z.Pointer
+    if P and type(P.UpdateArrowVisibility) == "function" then
+        P:UpdateArrowVisibility()
+    end
+end
+
+local function ResetAppliedWaypointState()
+    bridge.lastSig = nil
+    bridge.lastAppliedSource = nil
+    bridge.lastAppliedAt = 0
+    bridge.lastArrowSeenAt = 0
+    bridge.lastArrowSeenMap = nil
+    bridge.pendingFallbackSwitch = nil
+    bridge.lastSuppressLogAt = 0
+    bridge.lastSuppressLogSig = nil
+end
+
+local function RemoveBridgeWaypoint()
+    if bridge.lastUID and TomTom and type(TomTom.RemoveWaypoint) == "function" then
+        TomTom:RemoveWaypoint(bridge.lastUID)
+    end
+    bridge.lastUID = nil
+end
+
+local function ClearHiddenGuideWaypoints()
+    local Z = NS.ZGV()
+    if not Z then return end
+
+    if type(Z.ShowWaypoints) == "function" then
+        Z:ShowWaypoints("clear")
+    end
+
+    local P = Z.Pointer
+    if P and type(P.HideArrow) == "function" then
+        P:HideArrow()
+    end
+end
+
+local function RefreshVisibleGuideWaypoints()
+    local Z = NS.ZGV()
+    if not Z then return end
+
+    if type(Z.ShowWaypoints) == "function" then
+        Z:ShowWaypoints()
+    end
+
+    local P = Z.Pointer
+    if P and type(P.UpdateArrowVisibility) == "function" then
+        P:UpdateArrowVisibility()
+    end
+end
+
+local function GetGuideVisibilityState()
+    local Z = NS.ZGV()
+    if not Z or not Z.Pointer or not Z.Frame then return end
+
+    if Z.Frame:IsVisible() then
+        return "visible"
+    end
+
+    local waypoint = Z.Pointer.DestinationWaypoint
+    if waypoint and waypoint.type == "manual" then
+        return "hidden-manual"
+    end
+
+    return "hidden-idle"
+end
+
+local function SyncGuideVisibilityState()
+    NS.EnsureGuideArrowVisibilityPolicy()
+
+    local current = GetGuideVisibilityState()
+    if not current then return end
+
+    local previous = bridge.guideVisibilityState
+    if current == previous then
+        return current
+    end
+
+    bridge.guideVisibilityState = current
+    NS.Log("Guide visibility state", tostring(previous), "->", current)
+
+    if current == "hidden-idle" then
+        ClearHiddenGuideWaypoints()
+        RemoveBridgeWaypoint()
+        ResetAppliedWaypointState()
+    elseif current == "visible" and previous and previous ~= "visible" then
+        RefreshVisibleGuideWaypoints()
+    end
+
+    return current
 end
 
 local function pushTomTom(m, x, y, title, src)
@@ -153,8 +255,9 @@ local function LogSuppressOnce(reason, src, title, m)
     end
 end
 
-local function ShouldSuppressDestinationFallback(src, title, m)
+local function ShouldSuppressDestinationFallback(src, title, m, allowDestinationFallback)
     if src ~= "pointer.DestinationWaypoint" then return false end
+    if allowDestinationFallback then return false end
 
     local now = GetTime and GetTime() or 0
     local ageSinceArrowSeen = now - (bridge.lastArrowSeenAt or 0)
@@ -224,11 +327,19 @@ local function ShouldDebounceFallbackSwitch(sig, src)
 end
 
 function NS.TickUpdate()
-    if not NS.IsBridgeEnabled() then return end
+    local visibilityState = SyncGuideVisibilityState()
+    if visibilityState == "hidden-idle" then
+        if bridge.lastUID or bridge.lastSig or bridge.lastAppliedSource or bridge.pendingFallbackSwitch then
+            RemoveBridgeWaypoint()
+            ResetAppliedWaypointState()
+        end
+        return
+    end
 
-    local m, x, y, title, src = NS.ExtractWaypointFromZygor()
+    local pointerOnly = (visibilityState == "hidden-manual")
+    local m, x, y, title, src = NS.ExtractWaypointFromZygor(pointerOnly)
     if not (m and x and y) then return end
-    if ShouldSuppressDestinationFallback(src, title, m) then return end
+    if ShouldSuppressDestinationFallback(src, title, m, pointerOnly) then return end
 
     local sig = signature(m, x, y)
     if sig ~= bridge.lastSig then
@@ -273,6 +384,8 @@ function NS.StartBridgeHeartbeat()
 end
 
 function NS.ApplyTomTomArrowDefaults()
+    NS.EnsureGuideArrowVisibilityPolicy()
+
     if TomTom and TomTom.db and TomTom.db.profile then
         if TomTom.db.profile.arrow then
             TomTom.db.profile.arrow.showtta = false
@@ -320,6 +433,8 @@ function NS.HookZygorArrowTextures()
     local Z = NS.ZGV()
     if not Z or not Z.Pointer then return end
     local P = Z.Pointer
+
+    NS.EnsureGuideArrowVisibilityPolicy()
 
     if type(P.SetArrowSkin) == "function" then
         hooksecurefunc(P, "SetArrowSkin", function()

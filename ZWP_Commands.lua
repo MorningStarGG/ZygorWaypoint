@@ -11,7 +11,7 @@ local function trim(s)
 end
 
 local function usage()
-    NS.Msg("Usage: /zwp on | off | status | debug | options")
+    NS.Msg("Usage: /zwp status | debug | options")
     NS.Msg("       /zwp skin default|starlight")
     NS.Msg("       /zwp scale <" .. string.format("%.2f", C.SCALE_MIN) .. "-" .. string.format("%.2f", C.SCALE_MAX) .. ">")
     NS.Msg("       /zwp routing on|off|toggle")
@@ -110,7 +110,6 @@ local function handleStatus()
         "Status - Zygor:", Z and "found" or "missing",
         "Step:", stepTitle or "nil",
         "TomTom:", TomTom and "found" or "missing",
-        "Enabled:", NS.IsBridgeEnabled() and "yes" or "no",
         "Routing:", NS.IsRoutingEnabled() and "on" or "off",
         "Skin:", NS.GetSkinChoice(),
         "Scale:", NS.GetArrowScale(),
@@ -130,14 +129,7 @@ local function handleCommand(msg)
         return
     end
 
-    if cmd == "on" then
-        NS.SetBridgeEnabled(true)
-        NS.Msg("Bridge ON")
-        NS.TickUpdate()
-    elseif cmd == "off" then
-        NS.SetBridgeEnabled(false)
-        NS.Msg("Bridge OFF")
-    elseif cmd == "status" then
+    if cmd == "status" then
         handleStatus()
     elseif cmd == "debug" then
         local enabled = NS.ToggleDebug()

@@ -20,7 +20,6 @@ C.FALLBACK_CONFIRM_COUNT = 2
 C.DEST_FALLBACK_SUPPRESS_RECENT_ARROW_SECONDS = 2.50
 C.DEST_FALLBACK_SUPPRESS_MAP_MISMATCH_SECONDS = 25.00
 
-NS.Runtime.enabled = NS.Runtime.enabled ~= false
 NS.Runtime.debug = NS.Runtime.debug == true
 
 local function JoinArgs(...)

@@ -34,7 +34,7 @@ local function parseCoordPairFromText(s)
     end
 end
 
-function NS.ExtractWaypointFromZygor()
+function NS.ExtractWaypointFromZygor(pointerOnly)
     local Z = NS.ZGV()
     if not Z then return end
     local P = Z.Pointer
@@ -72,6 +72,8 @@ function NS.ExtractWaypointFromZygor()
             end
         end
     end
+
+    if pointerOnly then return end
 
     local step = Z.CurrentStep
     if step and step.current_waypoint_goal_num and step.goals then

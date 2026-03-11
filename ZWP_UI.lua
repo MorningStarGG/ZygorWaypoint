@@ -239,7 +239,6 @@ function NS.RegisterOptionsPanel()
     if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
         if not panel.settingsCategory then
             local category = Settings.RegisterCanvasLayoutCategory(panel, "ZygorWaypoint")
-            category.ID = "ZygorWaypoint"
             Settings.RegisterAddOnCategory(category)
             panel.settingsCategory = category
         end
@@ -255,7 +254,15 @@ function NS.OpenOptionsPanel()
     if not panel then return end
 
     if Settings and Settings.OpenToCategory and panel.settingsCategory then
-        Settings.OpenToCategory(panel.settingsCategory.ID or "ZygorWaypoint")
+        if type(panel.settingsCategory.GetID) == "function" then
+            local categoryID = panel.settingsCategory:GetID()
+            if type(categoryID) == "number" then
+                Settings.OpenToCategory(categoryID)
+                return
+            end
+        end
+
+        Settings.OpenToCategory(panel.settingsCategory)
         return
     end
 

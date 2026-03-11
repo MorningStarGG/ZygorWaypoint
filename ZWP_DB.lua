@@ -2,7 +2,6 @@ local NS = _G.ZygorWaypointNS
 local C = NS.Constants
 
 local DB_DEFAULTS = {
-    enabled = true,
     tomtomOverride = true,
     arrowAlignment = true,
     zygorRouting = true,
@@ -40,26 +39,16 @@ function NS.ApplyDBDefaults()
         end
     end
 
+    db.enabled = nil
+
     db.tomtomSkin = NS.NormalizeSkin(db.tomtomSkin)
     db.tomtomArrowScale = NS.NormalizeScale(db.tomtomArrowScale)
-
-    NS.Runtime.enabled = db.enabled ~= false
     return db
-end
-
-function NS.IsBridgeEnabled()
-    return NS.GetDB().enabled ~= false
-end
-
-function NS.SetBridgeEnabled(enabled)
-    local db = NS.GetDB()
-    db.enabled = enabled and true or false
-    NS.Runtime.enabled = db.enabled
 end
 
 function NS.IsRoutingEnabled()
     local db = NS.GetDB()
-    return db.enabled ~= false and db.zygorRouting ~= false
+    return db.zygorRouting ~= false
 end
 
 function NS.GetSkinChoice()

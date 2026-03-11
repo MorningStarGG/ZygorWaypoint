@@ -1,6 +1,25 @@
 # Changelog
 
-## 2.0.0
+## 2.1
+
+- **Guide visibility handling**
+  - Clears the active guide step waypoint when the Zygor guide frame is hidden.
+  - TomTom Crazy Arrow and Zygor Travel System text remain active while the guide is hidden, but guide step goals are disabled.
+  - Manual waypoints and Zygor travel routing continue to function normally while the guide is hidden.
+  - Guide step waypoints refresh automatically when the guide becomes visible again or when a manual waypoint is completed or cleared.
+  - Forces Zygor's `hidearrowwithguide` policy off so arrow visibility remains under ZygorWaypoint control.
+
+- **Command / settings cleanup**
+  - Removed obsolete `/zwp on` and `/zwp off` commands.
+  - Legacy `enabled` values are automatically cleared from SavedVariables on load.
+
+- **Options / UI**
+  - Resolved Lua errors triggered when opening the options panel that caused `/zwp options` command to not open the settings panel.
+
+- **Documentation**
+  - Updated command and documentation text to match the current `/zwp` command set.
+
+## 2.0
 
 - Packaging:
   - dependencies are now hard-required: `TomTom`, `ZygorGuidesViewer`.
