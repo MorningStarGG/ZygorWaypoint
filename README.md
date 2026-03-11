@@ -249,7 +249,7 @@ These changes simplify the addon and allow ZygorWaypoint to focus entirely on it
 ## 2.0
 
 - Packaging:
-  - dependencies are now hard-required: `TomTom`, `ZygorGuidesViewer`.
+  - Dependencies are now hard-required: `TomTom`, `ZygorGuidesViewer`.
 - Command root is still `/zwp`.
   - Subcommands: `status`, `debug`, `skin`, `scale`, `options`, `routing`, `align`, `override`.
 - Bridge features:

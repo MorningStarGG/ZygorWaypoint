@@ -31,7 +31,7 @@
 ## 2.0
 
 - Packaging:
-  - dependencies are now hard-required: `TomTom`, `ZygorGuidesViewer`.
+  - Dependencies are now hard-required: `TomTom`, `ZygorGuidesViewer`.
 - Command contract changed to `/zwp` only.
   - Added bridge-focused subcommands: `on`, `off`, `status`, `debug`, `skin`, `scale`, `options`, `routing`, `align`, `override`.
 - Bridge features:
