@@ -9,7 +9,7 @@
 
 # Overview
 
-**ZygorWaypoint v2.0** connects **Zygor Guides Viewer** and **TomTom** so they can share waypoint information.
+**ZygorWaypoint** connects **Zygor Guides Viewer** and **TomTom** so they can share waypoint information.
 
 The goal is simple:
 
