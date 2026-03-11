@@ -2,7 +2,7 @@
 
 > A bridge addon that lets **Zygor Guides** and **TomTom** work together --- using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-2.1-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/requires-Zygor%20Guides%20%2B%20TomTom-red)
+![Version](https://img.shields.io/badge/version-2.1a-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/requires-Zygor%20Guides%20%2B%20TomTom-red)
 
 
 ------------------------------------------------------------------------
