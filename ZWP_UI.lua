@@ -2,37 +2,37 @@ local NS = _G.ZygorWaypointNS
 local C = NS.Constants
 
 local optionsPanel
+local ADDON_NAME = "ZygorWaypoint"
+local ABOUT_ICON = "Interface\\AddOns\\ZygorWaypoint\\media\\icon.png"
 local TWITCH_URL = "https://www.twitch.tv/MorningStarGG"
 local TWITCH_COPY_POPUP = "ZWP_COPY_TWITCH_URL"
+local RELOAD_RECOMMENDED_POPUP = "ZWP_RELOAD_RECOMMENDED"
+local ABOUT_SUMMARY = "A bridge between Zygor Guides and TomTom's Crazy Arrow."
+local ABOUT_DESCRIPTION = table.concat({
+    "ZygorWaypoint drives TomTom's Crazy Arrow using Zygor's active guide destination.",
+    "",
+    "- Uses Zygor's Travel System to calculate navigation routes",
+    "- Displays TomTom's Crazy Arrow for waypoint navigation",
+    "- Hides Zygor's 3D arrow while keeping guide step text visible",
+    "- Optional alignment of TomTom's arrow with Zygor's arrow text",
+    "- Optional routing of TomTom waypoints through Zygor's Travel System",
+    "- Optional Zygor Starlight/Stealth skins and arrow scale override for TomTom",
+}, "\n")
+local ABOUT_CARD_HEIGHT = 320
 
-local function SetTooltip(widget, title, text)
-    widget:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(title, 1, 1, 1)
-        GameTooltip:AddLine(text, nil, nil, nil, true)
-        GameTooltip:Show()
-    end)
-    widget:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-end
+local DEFAULTS = {
+    tomtomOverride = true,
+    arrowAlignment = true,
+    zygorRouting = true,
+    guideStepsOnlyHover = false,
+    manualWaypointAutoClear = false,
+    manualWaypointClearDistance = C.MANUAL_CLEAR_DISTANCE_DEFAULT,
+    useCustomSkin = true,
+    customSkin = C.SKIN_STARLIGHT,
+    tomtomArrowScale = C.SCALE_DEFAULT,
+}
 
-local function UpdateScaleText(scale)
-    local value = NS.NormalizeScale(scale:GetValue())
-    scale.Text:SetText(string.format("TomTom Arrow Scale: %.2fx", value))
-end
-
-local function GetCustomSkinLabel(skin)
-    if skin == C.SKIN_STEALTH then
-        return "Stealth"
-    end
-    return "Starlight"
-end
-
-local function UpdateSkinChoiceText(button, skin)
-    if not button then return end
-    button:SetText("Skin: " .. GetCustomSkinLabel(skin))
-end
+local rememberedCustomSkin = DEFAULTS.customSkin
 
 local function ShowCopyLinkPopup(url)
     if not StaticPopupDialogs then
@@ -72,252 +72,462 @@ local function ShowCopyLinkPopup(url)
     StaticPopup_Show(TWITCH_COPY_POPUP, nil, nil, url)
 end
 
-function NS.CreateOptionsPanel()
-    if optionsPanel then return optionsPanel end
-
-    local panel = CreateFrame("Frame", "ZygorWaypointOptions_AddOns", UIParent)
-    panel.name = "ZygorWaypoint"
-    optionsPanel = panel
-
-    local logo = panel:CreateTexture(nil, "ARTWORK")
-    logo:SetSize(96, 96)
-    logo:SetPoint("TOPLEFT", 16, -16)
-    pcall(function()
-        logo:SetTexture("Interface\\AddOns\\ZygorWaypoint\\media\\icon.png")
-    end)
-
-    local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 16, -4)
-    title:SetText("ZygorWaypoint")
-
-    local ver = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    ver:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
-    ver:SetText(string.format("Version %s", NS.VERSION or "?"))
-
-    local tag = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    tag:SetPoint("TOPLEFT", ver, "BOTTOMLEFT", 0, -4)
-    tag:SetText("A bridge between Zygor Guides and TomTom's Crazy Arrow.")
-
-    local sep1 = panel:CreateTexture(nil, "ARTWORK")
-    sep1:SetColorTexture(1, 1, 1, 0.15)
-    sep1:SetHeight(1)
-    sep1:SetPoint("TOPLEFT", logo, "BOTTOMLEFT", 0, -12)
-    sep1:SetPoint("RIGHT", panel, "RIGHT", -16, 0)
-
-    local desc = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    desc:SetPoint("TOPLEFT", sep1, "BOTTOMLEFT", 0, -12)
-    desc:SetWidth(560)
-    desc:SetJustifyH("LEFT")
-    desc:SetText([[ZygorWaypoint drives TomTom's Crazy Arrow using Zygor's active guide destination.
-
-- Uses Zygor's Travel System to calculate navigation routes
-- Displays TomTom's Crazy Arrow for waypoint navigation
-- Hides Zygor's 3D arrow while keeping guide step text visible
-- Optional alignment of TomTom's arrow with Zygor's arrow text
-- Optional routing of TomTom waypoints through Zygor's Travel System
-- Optional Zygor Starlight/Stealth skins and arrow scale override for TomTom]])
-
-    local author = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-    author:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", 0, -10)
-    author:SetText("Author: MorningStarGG")
-
-    local twitchUrl = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    twitchUrl:SetPoint("TOPLEFT", author, "BOTTOMLEFT", 0, -4)
-    twitchUrl:SetText("Twitch: " .. TWITCH_URL)
-
-    local twitch = CreateFrame("Button", "ZWP_CopyTwitch_AddOns", panel, "UIPanelButtonTemplate")
-    twitch:SetSize(120, 22)
-    twitch:SetPoint("TOPLEFT", twitchUrl, "BOTTOMLEFT", 0, -6)
-    twitch:SetText("Copy Twitch")
-    twitch:SetScript("OnClick", function()
-        ShowCopyLinkPopup(TWITCH_URL)
-    end)
-    SetTooltip(
-        twitch,
-        "Copy Twitch",
-        "Opens a copy box with the Twitch URL selected. Press Ctrl+C."
-    )
-
-    local sep2 = panel:CreateTexture(nil, "ARTWORK")
-    sep2:SetColorTexture(1, 1, 1, 0.15)
-    sep2:SetHeight(1)
-    sep2:SetPoint("TOPLEFT", twitch, "BOTTOMLEFT", 0, -12)
-    sep2:SetPoint("RIGHT", panel, "RIGHT", -16, 0)
-
-    local optsHeader = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    optsHeader:SetPoint("TOPLEFT", sep2, "BOTTOMLEFT", 0, -10)
-    optsHeader:SetText("Options")
-
-    local cb1 = CreateFrame("CheckButton", "ZWP_OptionTomTomOverride_AddOns", panel, "InterfaceOptionsCheckButtonTemplate")
-    cb1:SetPoint("TOPLEFT", optsHeader, "BOTTOMLEFT", 0, -8)
-    cb1.Text:SetText("Override TomTom Clear Distance on Login")
-    SetTooltip(
-        cb1,
-        "Override TomTom Clear Distance on Login",
-        "When enabled, ZygorWaypoint sets TomTom clear-distance to 0 on login/reload."
-    )
-
-    local cb2 = CreateFrame("CheckButton", "ZWP_OptionArrowAlignment_AddOns", panel, "InterfaceOptionsCheckButtonTemplate")
-    cb2:SetPoint("TOPLEFT", cb1, "BOTTOMLEFT", 0, -8)
-    cb2.Text:SetText("Align TomTom Arrow to Zygor Text")
-    SetTooltip(
-        cb2,
-        "Align TomTom Arrow to Zygor Text",
-        "When enabled, TomTom's Crazy Arrow anchors to Zygor's arrow frame position."
-    )
-
-    local cb3 = CreateFrame("CheckButton", "ZWP_OptionZygorRouting_AddOns", panel, "InterfaceOptionsCheckButtonTemplate")
-    cb3:SetPoint("TOPLEFT", cb2, "BOTTOMLEFT", 0, -8)
-    cb3.Text:SetText("Route TomTom Waypoints via Zygor Travel")
-    SetTooltip(
-        cb3,
-        "Route TomTom Waypoints via Zygor Travel",
-        "When enabled, TomTom waypoints are mirrored through Zygor pathfinding."
-    )
-
-    local cb4 = CreateFrame("CheckButton", "ZWP_OptionTomTomZygorSkin_AddOns", panel, "InterfaceOptionsCheckButtonTemplate")
-    cb4:SetPoint("TOPLEFT", cb3, "BOTTOMLEFT", 0, -8)
-    cb4.Text:SetText("Use Zygor Skin for TomTom Arrow")
-    SetTooltip(
-        cb4,
-        "Use Zygor Skin for TomTom Arrow",
-        "When enabled, TomTom's Crazy Arrow uses Zygor Starlight or Stealth art."
-    )
-
-    local skinChoice = CreateFrame("Button", "ZWP_OptionTomTomSkinChoice_AddOns", panel, "UIPanelButtonTemplate")
-    skinChoice:SetSize(130, 22)
-    skinChoice:SetPoint("TOPLEFT", cb4, "BOTTOMLEFT", 28, -6)
-    UpdateSkinChoiceText(skinChoice, C.SKIN_STARLIGHT)
-    skinChoice:SetScript("OnClick", function(self)
-        local nextSkin = self:GetParent().selectedCustomSkin == C.SKIN_STEALTH and C.SKIN_STARLIGHT or C.SKIN_STEALTH
-        self:GetParent().selectedCustomSkin = nextSkin
-        UpdateSkinChoiceText(self, nextSkin)
-    end)
-    SetTooltip(
-        skinChoice,
-        "TomTom Zygor Skin",
-        "Cycles between the Zygor Starlight and Stealth TomTom skins."
-    )
-
-    local scale = CreateFrame("Slider", "ZWP_OptionArrowScale_AddOns", panel, "OptionsSliderTemplate")
-    scale:SetPoint("TOPLEFT", skinChoice, "BOTTOMLEFT", -20, -24)
-    scale:SetWidth(220)
-    scale:SetMinMaxValues(C.SCALE_MIN, C.SCALE_MAX)
-    scale:SetValueStep(C.SCALE_STEP)
-    if scale.SetObeyStepOnDrag then
-        scale:SetObeyStepOnDrag(true)
+local function ShowReloadRecommendedPopup(settingName)
+    if not StaticPopupDialogs then
+        NS.Msg("Reload recommended after changing", settingName .. ". Use /reload when convenient.")
+        return
     end
-    _G[scale:GetName() .. "Low"]:SetText(string.format("%.2f", C.SCALE_MIN))
-    _G[scale:GetName() .. "High"]:SetText(string.format("%.2f", C.SCALE_MAX))
-    scale:SetScript("OnValueChanged", function(self)
-        UpdateScaleText(self)
-    end)
-    SetTooltip(
-        scale,
-        "TomTom Arrow Scale",
-        "Applies only when a Zygor TomTom skin is enabled."
+
+    if not StaticPopupDialogs[RELOAD_RECOMMENDED_POPUP] then
+        StaticPopupDialogs[RELOAD_RECOMMENDED_POPUP] = {
+            text = "A reload is recommended after changing \"%s\".\n\nReload now?",
+            button1 = RELOADUI or "Reload Now",
+            button2 = "Not Now",
+            timeout = 0,
+            whileDead = 1,
+            hideOnEscape = 1,
+            preferredIndex = STATICPOPUP_NUMDIALOGS,
+            OnAccept = function()
+                ReloadUI()
+            end,
+        }
+    end
+
+    if type(StaticPopup_Visible) == "function" and StaticPopup_Visible(RELOAD_RECOMMENDED_POPUP) then
+        return
+    end
+
+    StaticPopup_Show(RELOAD_RECOMMENDED_POPUP, settingName or "this setting")
+end
+
+local function ApplySkinAndScale()
+    NS.ApplyTomTomScalePolicy()
+
+    if NS.HookTomTomThemeBridge then
+        NS.HookTomTomThemeBridge()
+    end
+    if NS.ApplyTomTomArrowSkin then
+        NS.ApplyTomTomArrowSkin()
+    end
+
+    local db = NS.GetDB()
+    if db.arrowAlignment ~= false then
+        NS.AlignTomTomToZygor()
+        NS.HookUnifiedArrowDrag()
+    end
+
+    if TomTom and type(TomTom.ShowHideCrazyArrow) == "function" then
+        TomTom:ShowHideCrazyArrow()
+    end
+end
+
+local function RefreshViewerChromeMode()
+    if NS.HookZygorViewerChromeMode then
+        NS.HookZygorViewerChromeMode()
+    end
+    if NS.RefreshZygorViewerChromeMode then
+        NS.RefreshZygorViewerChromeMode()
+    end
+end
+
+local function GetAddonMetadataValue(field, fallback)
+    local value
+    if C_AddOns and type(C_AddOns.GetAddOnMetadata) == "function" then
+        value = C_AddOns.GetAddOnMetadata(ADDON_NAME, field)
+    elseif type(GetAddOnMetadata) == "function" then
+        value = GetAddOnMetadata(ADDON_NAME, field)
+    end
+
+    if value == nil or value == "" then
+        return fallback
+    end
+    return value
+end
+
+local function CreateAboutCardInitializer()
+    local initializer = CreateFromMixins(
+        ScrollBoxFactoryInitializerMixin,
+        SettingsElementHierarchyMixin,
+        SettingsSearchableElementMixin
     )
 
-    cb4:SetScript("OnClick", function(self)
-        scale:SetEnabled(self:GetChecked())
-        if skinChoice.Enable and skinChoice.Disable then
-            if self:GetChecked() then
-                skinChoice:Enable()
-            else
-                skinChoice:Disable()
+    function initializer:Init()
+        ScrollBoxFactoryInitializerMixin.Init(self, "SettingsListElementTemplate")
+        self.data = {
+            name = "About",
+            tooltip = ABOUT_SUMMARY,
+        }
+        self:AddSearchTags("About")
+        self:AddSearchTags(ADDON_NAME)
+        self:AddSearchTags("MorningStarGG")
+        self:AddSearchTags("Twitch")
+        self:AddSearchTags("TomTom")
+        self:AddSearchTags("Zygor")
+    end
+
+    function initializer:GetExtent()
+        return ABOUT_CARD_HEIGHT
+    end
+
+    function initializer:InitFrame(frame)
+        frame:SetHeight(self:GetExtent())
+        if frame.Text then
+            frame.Text:SetText("")
+            frame.Text:Hide()
+        end
+
+        local card = frame.aboutCard
+        if not card then
+            card = CreateFrame("Frame", nil, frame)
+            frame.aboutCard = card
+            card:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, -4)
+            card:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -4)
+            card:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 0, 4)
+
+            card.icon = card:CreateTexture(nil, "ARTWORK")
+            card.icon:SetSize(96, 96)
+            card.icon:SetPoint("TOPLEFT", 8, -4)
+
+            card.title = card:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+            card.title:SetPoint("TOPLEFT", card.icon, "TOPRIGHT", 16, 0)
+            card.title:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+            card.title:SetJustifyH("LEFT")
+
+            card.version = card:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+            card.version:SetPoint("TOPLEFT", card.title, "BOTTOMLEFT", 0, -4)
+            card.version:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+            card.version:SetJustifyH("LEFT")
+
+            card.summary = card:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+            card.summary:SetPoint("TOPLEFT", card.version, "BOTTOMLEFT", 0, -4)
+            card.summary:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+            card.summary:SetJustifyH("LEFT")
+            card.summary:SetWordWrap(true)
+
+            card.separator = card:CreateTexture(nil, "ARTWORK")
+            card.separator:SetColorTexture(1, 1, 1, 0.14)
+            card.separator:SetHeight(1)
+            card.separator:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -112)
+            card.separator:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -112)
+
+            card.description = card:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+            card.description:SetPoint("TOPLEFT", card.separator, "BOTTOMLEFT", 0, -12)
+            card.description:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+            card.description:SetJustifyH("LEFT")
+            card.description:SetJustifyV("TOP")
+            card.description:SetWordWrap(true)
+
+            card.author = card:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+            card.author:SetPoint("TOPLEFT", card.description, "BOTTOMLEFT", 0, -10)
+            card.author:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+            card.author:SetJustifyH("LEFT")
+
+            card.twitch = card:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+            card.twitch:SetPoint("TOPLEFT", card.author, "BOTTOMLEFT", 0, -4)
+            card.twitch:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+            card.twitch:SetJustifyH("LEFT")
+
+            card.copyButton = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
+            card.copyButton:SetSize(160, 22)
+            card.copyButton:SetPoint("TOPLEFT", card.twitch, "BOTTOMLEFT", 0, -10)
+            card.copyButton:SetText("Copy Twitch URL")
+            card.copyButton:SetScript("OnClick", function()
+                ShowCopyLinkPopup(TWITCH_URL)
+            end)
+        end
+
+        card:Show()
+        card.icon:SetTexture(ABOUT_ICON)
+        card.title:SetText(ADDON_NAME)
+        card.version:SetText("Version " .. GetAddonMetadataValue("Version", "2.2"))
+        card.summary:SetText(ABOUT_SUMMARY)
+        card.description:SetText(ABOUT_DESCRIPTION)
+        card.author:SetText("Author: " .. GetAddonMetadataValue("Author", "MorningStarGG"))
+        card.twitch:SetText("Twitch: " .. TWITCH_URL)
+    end
+
+    function initializer:Resetter(frame)
+        if frame.aboutCard then
+            frame.aboutCard:Hide()
+        end
+        if frame.Text then
+            frame.Text:Show()
+        end
+    end
+
+    initializer:Init()
+    return initializer
+end
+
+local function CreateSkinOptions()
+    local container = Settings.CreateControlTextContainer()
+    container:Add(C.SKIN_STARLIGHT, "Starlight")
+    container:Add(C.SKIN_STEALTH, "Stealth")
+    return container:GetData()
+end
+
+local function CreateProxySetting(category, key, varType, name, defaultValue, getValue, setValue)
+    return Settings.RegisterProxySetting(
+        category,
+        "ZWP_" .. key,
+        varType,
+        name,
+        defaultValue,
+        getValue,
+        setValue
+    )
+end
+
+local function AddCheckbox(category, key, name, defaultValue, tooltip, getValue, setValue)
+    local setting = CreateProxySetting(category, key, Settings.VarType.Boolean, name, defaultValue, getValue, setValue)
+    Settings.CreateCheckbox(category, setting, tooltip)
+end
+
+local function AddSlider(category, key, name, defaultValue, minValue, maxValue, step, formatter, tooltip, getValue, setValue)
+    local setting = CreateProxySetting(category, key, Settings.VarType.Number, name, defaultValue, getValue, setValue)
+    local options = Settings.CreateSliderOptions(minValue, maxValue, step)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, formatter)
+    Settings.CreateSlider(category, setting, options, tooltip)
+end
+
+local function AddDropdown(category, key, name, defaultValue, getValue, setValue, getOptions, tooltip)
+    local setting = CreateProxySetting(category, key, Settings.VarType.String, name, defaultValue, getValue, setValue)
+    Settings.CreateDropdown(category, setting, getOptions, tooltip)
+end
+
+local function InitializeOptionsPanel()
+    if optionsPanel then
+        return optionsPanel
+    end
+
+    if not (Settings and Settings.RegisterVerticalLayoutCategory and Settings.RegisterAddOnCategory) then
+        return
+    end
+
+    NS.ApplyDBDefaults()
+
+    local category, layout = Settings.RegisterVerticalLayoutCategory("ZygorWaypoint")
+    optionsPanel = {
+        settingsCategory = category,
+        settingsLayout = layout,
+    }
+
+    local currentSkin = NS.GetSkinChoice()
+    if currentSkin ~= C.SKIN_DEFAULT then
+        rememberedCustomSkin = currentSkin
+    end
+
+    layout:AddInitializer(CreateAboutCardInitializer())
+
+    layout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Navigation"))
+
+    AddCheckbox(
+        category,
+        "TOMTOM_OVERRIDE",
+        "Override TomTom Clear Distance on Login",
+        DEFAULTS.tomtomOverride,
+        "When enabled, ZygorWaypoint sets TomTom clear-distance to 0 on login/reload.",
+        function()
+            return NS.GetDB().tomtomOverride ~= false
+        end,
+        function(value)
+            local db = NS.GetDB()
+            local oldValue = db.tomtomOverride ~= false
+            local newValue = value and true or false
+            db.tomtomOverride = newValue
+            if value and TomTom and TomTom.db and TomTom.db.profile and TomTom.db.profile.persistence then
+                TomTom.db.profile.persistence.cleardistance = 0
+            end
+            if oldValue ~= newValue then
+                ShowReloadRecommendedPopup("Override TomTom Clear Distance on Login")
             end
         end
-    end)
+    )
 
-    panel.cb1 = cb1
-    panel.cb2 = cb2
-    panel.cb3 = cb3
-    panel.cb4 = cb4
-    panel.skinChoice = skinChoice
-    panel.scale = scale
+    AddCheckbox(
+        category,
+        "MANUAL_AUTO_CLEAR",
+        "Auto-Clear Manual Waypoints on Arrival",
+        DEFAULTS.manualWaypointAutoClear,
+        "When enabled, ZygorWaypoint clears true manual destinations when you enter the selected yard range. Nearest NPC searches are not auto-cleared.",
+        function()
+            return NS.IsManualWaypointAutoClearEnabled()
+        end,
+        function(value)
+            NS.SetManualWaypointAutoClearEnabled(value)
+        end
+    )
 
-    local apply = CreateFrame("Button", "ZWP_ApplyAndReload_AddOns", panel, "UIPanelButtonTemplate")
-    apply:SetSize(160, 24)
-    apply:SetPoint("TOPLEFT", scale, "BOTTOMLEFT", -8, -22)
-    apply:SetText("Apply and Reload")
-    apply:SetScript("OnClick", function()
-        local db = NS.GetDB()
-        db.tomtomOverride = cb1:GetChecked() and true or false
-        db.arrowAlignment = cb2:GetChecked() and true or false
-        db.zygorRouting = cb3:GetChecked() and true or false
-        db.tomtomSkin = cb4:GetChecked() and (panel.selectedCustomSkin or C.SKIN_STARLIGHT) or C.SKIN_DEFAULT
-        db.tomtomArrowScale = NS.NormalizeScale(scale:GetValue())
-        NS.Msg("ZygorWaypoint options saved. Reloading UI...")
-        ReloadUI()
-    end)
+    AddSlider(
+        category,
+        "MANUAL_CLEAR_DISTANCE",
+        "Manual Waypoint Clear Distance",
+        DEFAULTS.manualWaypointClearDistance,
+        C.MANUAL_CLEAR_DISTANCE_MIN,
+        C.MANUAL_CLEAR_DISTANCE_MAX,
+        C.MANUAL_CLEAR_DISTANCE_STEP,
+        function(value)
+            return string.format("%d yd", NS.NormalizeManualWaypointClearDistance(value))
+        end,
+        "Clears the active manual waypoint, mirrored TomTom pin, and Blizzard user waypoint when you arrive within this many yards.",
+        function()
+            return NS.GetManualWaypointClearDistance()
+        end,
+        function(value)
+            NS.SetManualWaypointClearDistance(value)
+        end
+    )
 
-    panel:SetScript("OnShow", function(self)
-        local db = NS.ApplyDBDefaults()
-
-        self.cb1:SetChecked(db.tomtomOverride)
-        self.cb2:SetChecked(db.arrowAlignment)
-        self.cb3:SetChecked(db.zygorRouting)
-
-        local skinChoice = NS.GetSkinChoice()
-        local useCustomSkin = skinChoice ~= C.SKIN_DEFAULT
-        self.selectedCustomSkin = useCustomSkin and skinChoice or (self.selectedCustomSkin or C.SKIN_STARLIGHT)
-        self.cb4:SetChecked(useCustomSkin)
-        UpdateSkinChoiceText(self.skinChoice, self.selectedCustomSkin)
-
-        self.scale:SetValue(NS.GetArrowScale())
-        UpdateScaleText(self.scale)
-        self.scale:SetEnabled(useCustomSkin)
-        if self.skinChoice.Enable and self.skinChoice.Disable then
-            if useCustomSkin then
-                self.skinChoice:Enable()
-            else
-                self.skinChoice:Disable()
+    AddCheckbox(
+        category,
+        "ARROW_ALIGNMENT",
+        "Align TomTom Arrow to Zygor Text",
+        DEFAULTS.arrowAlignment,
+        "When enabled, TomTom's Crazy Arrow anchors to Zygor's arrow frame position.",
+        function()
+            return NS.GetDB().arrowAlignment ~= false
+        end,
+        function(value)
+            local db = NS.GetDB()
+            local oldValue = db.arrowAlignment ~= false
+            local newValue = value and true or false
+            db.arrowAlignment = newValue
+            if value then
+                NS.AlignTomTomToZygor()
+                NS.HookUnifiedArrowDrag()
+            end
+            if oldValue ~= newValue then
+                ShowReloadRecommendedPopup("Align TomTom Arrow to Zygor Text")
             end
         end
-    end)
+    )
 
-    return panel
+    AddCheckbox(
+        category,
+        "ZYGOR_ROUTING",
+        "Route TomTom Waypoints via Zygor",
+        DEFAULTS.zygorRouting,
+        "When enabled, TomTom waypoints are mirrored through Zygor pathfinding.",
+        function()
+            return NS.IsRoutingEnabled()
+        end,
+        function(value)
+            local db = NS.GetDB()
+            db.zygorRouting = value and true or false
+        end
+    )
+
+    AddCheckbox(
+        category,
+        "GUIDE_STEPS_ONLY_HOVER",
+        "Show Only Guide Steps Until Mouseover",
+        DEFAULTS.guideStepsOnlyHover,
+        "Keeps the visible guide step rows on screen while fading out the rest of Zygor's guide frame until you mouse over it.",
+        function()
+            return NS.IsGuideStepsOnlyHoverEnabled()
+        end,
+        function(value)
+            NS.SetGuideStepsOnlyHoverEnabled(value)
+            RefreshViewerChromeMode()
+        end
+    )
+
+    layout:AddInitializer(CreateSettingsListSectionHeaderInitializer("TomTom Arrow"))
+
+    AddCheckbox(
+        category,
+        "USE_CUSTOM_SKIN",
+        "Use Zygor Skin for TomTom Arrow",
+        DEFAULTS.useCustomSkin,
+        "When enabled, TomTom's Crazy Arrow uses Zygor Starlight or Stealth art.",
+        function()
+            return NS.GetSkinChoice() ~= C.SKIN_DEFAULT
+        end,
+        function(value)
+            if value then
+                NS.SetSkinChoice(rememberedCustomSkin or DEFAULTS.customSkin)
+            else
+                local current = NS.GetSkinChoice()
+                if current ~= C.SKIN_DEFAULT then
+                    rememberedCustomSkin = current
+                end
+                NS.SetSkinChoice(C.SKIN_DEFAULT)
+            end
+            ApplySkinAndScale()
+        end
+    )
+
+    AddDropdown(
+        category,
+        "CUSTOM_SKIN",
+        "TomTom Zygor Skin",
+        DEFAULTS.customSkin,
+        function()
+            local skin = NS.GetSkinChoice()
+            if skin == C.SKIN_DEFAULT then
+                return rememberedCustomSkin or DEFAULTS.customSkin
+            end
+            rememberedCustomSkin = skin
+            return skin
+        end,
+        function(value)
+            rememberedCustomSkin = value
+            if NS.GetSkinChoice() ~= C.SKIN_DEFAULT then
+                NS.SetSkinChoice(value)
+                ApplySkinAndScale()
+            end
+        end,
+        CreateSkinOptions,
+        "Selects the Zygor art used by TomTom when the custom skin option is enabled."
+    )
+
+    AddSlider(
+        category,
+        "ARROW_SCALE",
+        "TomTom Arrow Scale",
+        DEFAULTS.tomtomArrowScale,
+        C.SCALE_MIN,
+        C.SCALE_MAX,
+        C.SCALE_STEP,
+        function(value)
+            return string.format("%.2fx", NS.NormalizeScale(value))
+        end,
+        "Applies only when a Zygor TomTom skin is enabled.",
+        function()
+            return NS.GetArrowScale()
+        end,
+        function(value)
+            NS.SetArrowScale(value)
+            ApplySkinAndScale()
+        end
+    )
+
+    Settings.RegisterAddOnCategory(category)
+    return optionsPanel
+end
+
+function NS.CreateOptionsPanel()
+    return InitializeOptionsPanel()
 end
 
 function NS.RegisterOptionsPanel()
-    NS.ApplyDBDefaults()
-    local panel = NS.CreateOptionsPanel()
-
-    if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
-        if not panel.settingsCategory then
-            local category = Settings.RegisterCanvasLayoutCategory(panel, "ZygorWaypoint")
-            Settings.RegisterAddOnCategory(category)
-            panel.settingsCategory = category
-        end
-    elseif InterfaceOptions_AddCategory and not panel.added then
-        InterfaceOptions_AddCategory(panel)
-        panel.added = true
-    end
+    return InitializeOptionsPanel()
 end
 
 function NS.OpenOptionsPanel()
-    NS.RegisterOptionsPanel()
-    local panel = optionsPanel
-    if not panel then return end
+    local panel = InitializeOptionsPanel()
+    if not panel or not panel.settingsCategory or not (Settings and Settings.OpenToCategory) then
+        return
+    end
 
-    if Settings and Settings.OpenToCategory and panel.settingsCategory then
-        if type(panel.settingsCategory.GetID) == "function" then
-            local categoryID = panel.settingsCategory:GetID()
-            if type(categoryID) == "number" then
-                Settings.OpenToCategory(categoryID)
-                return
-            end
+    local category = panel.settingsCategory
+    if type(category.GetID) == "function" then
+        local categoryID = category:GetID()
+        if type(categoryID) == "number" then
+            Settings.OpenToCategory(categoryID)
+            return
         end
-
-        Settings.OpenToCategory(panel.settingsCategory)
-        return
     end
 
-    if InterfaceOptionsFrame_OpenToCategory then
-        InterfaceOptionsFrame_OpenToCategory(panel)
-        InterfaceOptionsFrame_OpenToCategory(panel)
-        return
-    end
-
-    panel:Show()
+    Settings.OpenToCategory(category)
 end

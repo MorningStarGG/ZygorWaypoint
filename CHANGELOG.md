@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.3
+- **Guide viewer compact mode**
+  - Added an option to show only the visible guide step rows, similar to the old "Mini Mode with Tooltip" Zygor previously offered.
+  - Hovering over the Zygor guide viewer temporarily restores the full guide viewer until mouse is no longer over the guide viewer.
+
+- **Manual waypoint arrival clearing**
+  - Added an optional auto-clear feature for manual waypoints with a configurable arrival distance (yards).
+  - When a manual destination auto-clears, the mirrored TomTom pin, Blizzard user waypoint, and supertracking state are also cleared.
+  - Zygor travel routing is not affected, intermediate travel steps remain intact and auto-clear only applies to the final destination waypoint.
+
+- **Options / UI**
+  - Rebuilt the addon options panel using Blizzard's newer Settings layout.
+  - Most options now apply without needing a UI reload. Settings that cannot update fully live will instead display a reload-recommended prompt.
+  - Added slash commands for the new manual waypoint auto-clear and compact viewer features: `/zwp manualclear`, `/zwp cleardistance`, and `/zwp compact`.
+
+- **Search fixes**
+  - Refined vendor fallback handling so the repair fallback only triggers when a vendor search truly fails.
+  - Chat feedback now reflects the fallback behavior more accurately.
+
+
 ## 2.2
 - **Hidden guide / waypoint control**
   - Added runtime guards around Zygor's guide waypoint rebuild path so guide-step navigation text remain suppressed while the guide viewer is hidden. This fixes cases where guide steps could still attempt to take control when the viewer was hidden.
@@ -18,7 +38,7 @@
 - **Search commands**
   - Added `/zwp search` support for Zygor service lookups including vendor, auctioneer, banker, innkeeper, flightmaster, mailbox, repair, riding trainer, stable master, transmogrifier, and void storage.
   - Added profession trainer and profession workshop searches, along with `/zwp search help`.
-  - Added retail-friendly aliases such as `ah`, `auction`, `bank`, `inn`, `mog`, `tmog`, `store`, `repairs`, and `stables`.
+  - Added friendly aliases such as `ah`, `auction`, `bank`, `inn`, `mog`, `tmog`, `store`, `repairs`, and `stables`.
   - Vendor searches now fall back to `Repair` if Zygor's vendor lookup fails to place a waypoint, including when the search originates from Zygor's menu. ZWP will tell you when this occurs.
 
 - **Documentation**

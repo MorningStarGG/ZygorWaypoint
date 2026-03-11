@@ -19,9 +19,12 @@ state.bridge = state.bridge or {
     guideVisibilityState = nil,
     heartbeatFrame = nil,
     heartbeatElapsed = 0,
+    manualAutoClearWaypoint = nil,
+    manualAutoClearArmed = false,
 }
 
 local bridge = state.bridge
+local HBD = _G.LibStub and LibStub("HereBeDragons-2.0", true)
 
 local function IsArrowWaypointSource(src)
     return src == "pointer.ArrowFrame.waypoint" or src == "pointer.arrow.waypoint"
@@ -111,6 +114,11 @@ local function ResetAppliedWaypointState()
     bridge.lastSuppressLogSig = nil
 end
 
+local function ResetManualAutoClearState()
+    bridge.manualAutoClearWaypoint = nil
+    bridge.manualAutoClearArmed = false
+end
+
 local function RemoveBridgeWaypoint()
     if bridge.lastUID and TomTom and type(TomTom.RemoveWaypoint) == "function" then
         TomTom:RemoveWaypoint(bridge.lastUID)
@@ -163,6 +171,98 @@ local function GetActiveManualDestination()
     if destination and destination.type == "manual" then
         return destination
     end
+end
+
+local function IsAutoClearableManualDestination(waypoint)
+    return waypoint
+        and waypoint.type == "manual"
+        and not waypoint.manualnpcid
+end
+
+local function GetWaypointDistanceYards(waypoint)
+    if not HBD or not waypoint or not waypoint.m or not waypoint.x or not waypoint.y then
+        return
+    end
+
+    local px, py, pm = HBD:GetPlayerZonePosition(true)
+    if not (px and py and pm) then
+        return
+    end
+
+    return HBD:GetZoneDistance(pm, px, py, waypoint.m, waypoint.x, waypoint.y)
+end
+
+local function ClearActiveManualDestination(visibilityState)
+    local Z = NS.ZGV()
+    local P = Z and Z.Pointer
+    if not Z or not P then
+        return false
+    end
+
+    if type(P.ClearWaypoints) == "function" then
+        P:ClearWaypoints("manual")
+    else
+        return false
+    end
+
+    if type(P.HideArrow) == "function" then
+        P:HideArrow()
+    end
+
+    ClearBridgeMirror()
+    ResetManualAutoClearState()
+
+    if visibilityState == "visible" and type(Z.ShowWaypoints) == "function" then
+        Z:ShowWaypoints()
+        if type(P.UpdateArrowVisibility) == "function" then
+            P:UpdateArrowVisibility()
+        end
+    end
+
+    return true
+end
+
+local function MaybeAutoClearManualDestination(visibilityState)
+    if not NS.IsManualWaypointAutoClearEnabled or not NS.IsManualWaypointAutoClearEnabled() then
+        ResetManualAutoClearState()
+        return false
+    end
+
+    local clearDistance = type(NS.GetManualWaypointClearDistance) == "function" and NS.GetManualWaypointClearDistance() or 0
+    if clearDistance <= 0 then
+        ResetManualAutoClearState()
+        return false
+    end
+
+    local destination = GetActiveManualDestination()
+    if not IsAutoClearableManualDestination(destination) then
+        ResetManualAutoClearState()
+        return false
+    end
+
+    local distance = GetWaypointDistanceYards(destination)
+    if not distance then
+        return false
+    end
+
+    if bridge.manualAutoClearWaypoint ~= destination then
+        bridge.manualAutoClearWaypoint = destination
+        bridge.manualAutoClearArmed = distance > clearDistance
+        return false
+    end
+
+    if not bridge.manualAutoClearArmed then
+        if distance > clearDistance then
+            bridge.manualAutoClearArmed = true
+        end
+        return false
+    end
+
+    if distance > clearDistance then
+        return false
+    end
+
+    return ClearActiveManualDestination(visibilityState)
 end
 
 local function IsGuideHiddenState(visibilityState)
@@ -459,6 +559,10 @@ end
 
 function NS.TickUpdate()
     local visibilityState = SyncGuideVisibilityState()
+    if MaybeAutoClearManualDestination(visibilityState) then
+        return
+    end
+
     if visibilityState == "hidden-idle" then
         if bridge.lastUID or bridge.lastSig or bridge.lastAppliedSource or bridge.pendingFallbackSwitch then
             ClearBridgeMirror()

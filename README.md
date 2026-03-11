@@ -2,7 +2,7 @@
 
 > A bridge addon that lets **Zygor Guides** and **TomTom** work together --- using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-2.2-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/requires-Zygor%20Guides%20%2B%20TomTom-red)
+![Version](https://img.shields.io/badge/version-2.3-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -105,9 +105,79 @@ The arrow you see is always **TomTom's arrow**—ZygorWaypoint simply uses Zygor
 
 ------------------------------------------------------------------------
 
+## NPC/Object Search Commands
+
+ZygorWaypoint can quickly route you to common NPCs and objects using `/zwp search`.
+
+These searches rely on Zygor's **Find Nearest NPC/Object** feature and use **Zygor's Travel System** to determine the fastest route, while navigation is displayed using **TomTom's Crazy Arrow**.
+
+Example:
+
+`/zwp search vendor`
+
+Supported services include:
+
+- vendor
+- barber
+- auctioneer
+- banker
+- innkeeper
+- flightmaster
+- mailbox
+- repair
+- transmogrifier
+- void storage
+- stable master
+- riding trainer
+
+Profession helpers are also available:
+
+`/zwp search trainer <profession>`  
+`/zwp search workshop <profession>`
+
+Example:
+
+`/zwp search trainer blacksmithing`
+
+Several common aliases are also supported:
+
+- `ah`
+- `auction`
+- `bank`
+- `inn`
+- `mog`
+- `tmog`
+- `store`
+- `repairs`
+- `stables`
+
+If a vendor search fails to locate a vendor NPC, ZygorWaypoint will automatically fall back to searching for a nearby **Repair NPC**.
+
+------------------------------------------------------------------------
+
 ## Arrow Alignment
 
 TomTom's arrow can optionally be aligned with Zygor's arrow text frame to create a cleaner combined interface.
+
+------------------------------------------------------------------------
+
+## Manual Waypoint Auto-Clear
+
+ZygorWaypoint can optionally **automatically clear manual waypoints when you arrive at the destination**.
+
+This helps keep navigation clean when using manual waypoints, such as those set by other addons like **Silver Dragon** or manually selected map locations.
+
+When a manual waypoint auto-clears:
+
+- The **TomTom pin** is removed
+- The **Blizzard user waypoint** is cleared
+- **Supertracking** is reset
+
+Zygor's **travel routing system is not affected**.
+
+If Zygor generated intermediate travel steps (flight paths, portals, etc.), those route legs remain intact. Auto-clear only applies to the **final destination waypoint**.
+
+The arrival distance used for auto-clearing can be configured in the addon options.
 
 ------------------------------------------------------------------------
 
@@ -118,6 +188,21 @@ ZygorWaypoint hides Zygor's arrow graphic while leaving Zygor's travel text visi
 This prevents duplicate arrows on screen while allowing **TomTom's Crazy Arrow** to handle navigation.
 
 For users who prefer the Zygor look, optional **Starlight** and **Stealth** skins can be applied to TomTom's arrow so it visually matches Zygor's arrow styles.
+
+------------------------------------------------------------------------
+
+## Guide Viewer Compact Mode
+
+ZygorWaypoint includes an optional **compact guide viewer mode** inspired by Zygor's older *Mini Mode with Tooltip*.
+
+When enabled:
+
+- Only the **currently visible guide step rows** remain on screen.
+- The rest of the guide viewer is hidden to reduce UI clutter.
+
+Hovering over the Zygor guide viewer temporarily restores the **full viewer interface**, allowing normal interaction with the guide.
+
+Once the mouse leaves the guide viewer, the interface returns to compact mode.
 
 ------------------------------------------------------------------------
 
@@ -137,6 +222,9 @@ Available commands:
 -   `/zwp routing on|off|toggle` --- Control TomTom → Zygor routing
 -   `/zwp align on|off` --- Toggle arrow alignment
 -   `/zwp override on|off` --- Override TomTom clear-distance behavior
+-   `/zwp manualclear on|off|toggle` --- Toggle manual waypoint auto-clear on arrival
+-   `/zwp cleardistance <5-100>` --- Set the manual waypoint auto-clear distance in yards
+-   `/zwp compact on|off|toggle` --- Toggle compact guide viewer mode
 -   `/zwp search vendor|auctioneer|banker|innkeeper|flightmaster|mailbox|repair|transmogrifier|void storage` --- Route to the nearest matching NPC/service
 -   `/zwp search trainer <profession> | workshop <profession>` --- Route to the nearest profession trainer or workshop
 -   `/zwp search help` --- List supported search targets
@@ -156,11 +244,14 @@ Available settings:
 -   Override TomTom clear-distance on login
 -   Align TomTom arrow to Zygor text
 -   Route TomTom waypoints via Zygor travel
+-   Show only the visible guide step rows until mouseover
 -   Enable a Zygor arrow skin for TomTom
 -   Choose between Zygor Starlight and Stealth
 -   Adjust TomTom arrow scale (Zygor skins only)
 
-Use **Apply and Reload** to apply changes.
+Most settings apply immediately.
+
+If a setting requires a reload to fully apply, the addon will display a **reload-recommended prompt**.
 
 ------------------------------------------------------------------------
 
@@ -220,6 +311,25 @@ These changes simplify the addon and allow ZygorWaypoint to focus entirely on it
 ------------------------------------------------------------------------
 
 # Changelog
+
+## 2.3
+- **Guide viewer compact mode**
+  - Added an option to show only the visible guide step rows, similar to the old "Mini Mode with Tooltip" Zygor previously offered.
+  - Hovering over the Zygor guide viewer temporarily restores the full guide viewer until mouse is no longer over the guide viewer.
+
+- **Manual waypoint arrival clearing**
+  - Added an optional auto-clear feature for manual waypoints with a configurable arrival distance (yards).
+  - When a manual destination auto-clears, the mirrored TomTom pin, Blizzard user waypoint, and supertracking state are also cleared.
+  - Zygor travel routing is not affected, intermediate travel steps remain intact and auto-clear only applies to the final destination waypoint.
+
+- **Options / UI**
+  - Rebuilt the addon options panel using Blizzard's newer Settings layout.
+  - Most options now apply without needing a UI reload. Settings that cannot update fully live will instead display a reload-recommended prompt.
+  - Added slash commands for the new manual waypoint auto-clear and compact viewer features: `/zwp manualclear`, `/zwp cleardistance`, and `/zwp compact`.
+
+- **Search fixes**
+  - Refined vendor fallback handling so the repair fallback only triggers when a vendor search truly fails.
+  - Chat feedback now reflects the fallback behavior more accurately.
 
 ## 2.2
 - **Hidden guide / waypoint control**

@@ -153,6 +153,9 @@ local function usage()
     NS.Msg("       /zwp routing on|off|toggle")
     NS.Msg("       /zwp align on|off")
     NS.Msg("       /zwp override on|off")
+    NS.Msg("       /zwp manualclear on|off|toggle")
+    NS.Msg("       /zwp cleardistance <" .. tostring(C.MANUAL_CLEAR_DISTANCE_MIN) .. "-" .. tostring(C.MANUAL_CLEAR_DISTANCE_MAX) .. ">")
+    NS.Msg("       /zwp compact on|off|toggle")
     NS.Msg("       /zwp search <type>")
 end
 
@@ -167,6 +170,15 @@ local function applySkinAndScale()
     end
     if TomTom and type(TomTom.ShowHideCrazyArrow) == "function" then
         TomTom:ShowHideCrazyArrow()
+    end
+end
+
+local function refreshViewerChromeMode()
+    if NS.HookZygorViewerChromeMode then
+        NS.HookZygorViewerChromeMode()
+    end
+    if NS.RefreshZygorViewerChromeMode then
+        NS.RefreshZygorViewerChromeMode()
     end
 end
 
@@ -240,6 +252,72 @@ local function handleScale(arg)
     NS.Msg(string.format("TomTom arrow scale set to %.2fx", applied))
 end
 
+local function handleManualClear(arg)
+    local current = NS.IsManualWaypointAutoClearEnabled and NS.IsManualWaypointAutoClearEnabled()
+    local distance = NS.GetManualWaypointClearDistance and NS.GetManualWaypointClearDistance() or C.MANUAL_CLEAR_DISTANCE_DEFAULT
+
+    if arg == "on" then
+        NS.SetManualWaypointAutoClearEnabled(true)
+        NS.Msg(string.format("Manual waypoint auto-clear: enabled (%d yd)", distance))
+    elseif arg == "off" then
+        NS.SetManualWaypointAutoClearEnabled(false)
+        NS.Msg("Manual waypoint auto-clear: disabled")
+    elseif arg == "toggle" then
+        local enabled = NS.SetManualWaypointAutoClearEnabled(not current)
+        if enabled then
+            NS.Msg(string.format("Manual waypoint auto-clear: enabled (%d yd)", distance))
+        else
+            NS.Msg("Manual waypoint auto-clear: disabled")
+        end
+    else
+        NS.Msg(
+            "Manual waypoint auto-clear:",
+            current and "enabled" or "disabled",
+            string.format("(%d yd)", distance)
+        )
+        NS.Msg("Usage: /zwp manualclear on | off | toggle")
+    end
+end
+
+local function handleClearDistance(arg)
+    local value = tonumber(arg)
+    if not value then
+        NS.Msg(string.format("Manual waypoint clear distance: %d yd", NS.GetManualWaypointClearDistance()))
+        NS.Msg(
+            "Usage: /zwp cleardistance <"
+                .. tostring(C.MANUAL_CLEAR_DISTANCE_MIN)
+                .. "-"
+                .. tostring(C.MANUAL_CLEAR_DISTANCE_MAX)
+                .. ">"
+        )
+        return
+    end
+
+    local applied = NS.SetManualWaypointClearDistance(value)
+    NS.Msg(string.format("Manual waypoint clear distance set to %d yd", applied))
+end
+
+local function handleCompact(arg)
+    local current = NS.IsGuideStepsOnlyHoverEnabled and NS.IsGuideStepsOnlyHoverEnabled()
+
+    if arg == "on" then
+        NS.SetGuideStepsOnlyHoverEnabled(true)
+        refreshViewerChromeMode()
+        NS.Msg("Guide viewer compact mode: enabled")
+    elseif arg == "off" then
+        NS.SetGuideStepsOnlyHoverEnabled(false)
+        refreshViewerChromeMode()
+        NS.Msg("Guide viewer compact mode: disabled")
+    elseif arg == "toggle" then
+        local enabled = NS.SetGuideStepsOnlyHoverEnabled(not current)
+        refreshViewerChromeMode()
+        NS.Msg("Guide viewer compact mode:", enabled and "enabled" or "disabled")
+    else
+        NS.Msg("Guide viewer compact mode:", current and "enabled" or "disabled")
+        NS.Msg("Usage: /zwp compact on | off | toggle")
+    end
+end
+
 local function handleStatus()
     local Z = NS.ZGV()
     local stepTitle = Z and Z.CurrentStep and Z.CurrentStep.title
@@ -251,6 +329,13 @@ local function handleStatus()
         "Skin:", NS.GetSkinChoice(),
         "Scale:", NS.GetArrowScale(),
         "v" .. (NS.VERSION or "?")
+    )
+    NS.Msg(
+        "Manual auto-clear:",
+        NS.IsManualWaypointAutoClearEnabled() and "on" or "off",
+        string.format("(%d yd)", NS.GetManualWaypointClearDistance()),
+        "Compact viewer:",
+        NS.IsGuideStepsOnlyHoverEnabled() and "on" or "off"
     )
 end
 
@@ -276,7 +361,7 @@ end
 
 local function triggerVendorFallback(WW)
     state.commands.pendingVendorFallback = nil
-    NS.Msg("Vendor search found no route. Falling back to nearest repair.")
+    NS.Msg("Vendor search did not resolve a vendor waypoint. Falling back to nearest repair.")
     return WW:FindNPC("Repair")
 end
 
@@ -292,48 +377,54 @@ function NS.HookZygorWhoWhereFallbacks()
     end
 
     local originalFindNPC = WW.FindNPC
-    WW.FindNPC = function(self, typ, ...)
-        if typ == "Vendor" then
-            state.commands.vendorFallbackToken = (state.commands.vendorFallbackToken or 0) + 1
-            local token = state.commands.vendorFallbackToken
-            state.commands.pendingVendorFallback = {
-                token = token,
-                originalWay = self.CurrentWay,
-            }
-
-            NS.After(2.5, function()
-                local pending = state.commands.pendingVendorFallback
-                if not pending or pending.token ~= token then
-                    return
-                end
-
-                local currentWay = self.CurrentWay
-                state.commands.pendingVendorFallback = nil
-
-                if currentWay and currentWay ~= pending.originalWay and currentWay.manualnpcid then
-                    return
-                end
-
-                triggerVendorFallback(self)
-            end)
-        else
-            state.commands.pendingVendorFallback = nil
-        end
-
-        return originalFindNPC(self, typ, ...)
-    end
-
     local originalPathFoundHandler = WW.PathFoundHandler
-    WW.PathFoundHandler = function(searchState, path, ext, reason)
-        local pending = state.commands.pendingVendorFallback
-        if pending then
+    WW.FindNPC = function(self, typ, m, f, x, y)
+        if typ ~= "Vendor" then
             state.commands.pendingVendorFallback = nil
-            if searchState ~= "success" then
-                triggerVendorFallback(WW)
-            end
+            return originalFindNPC(self, typ, m, f, x, y)
         end
 
-        return originalPathFoundHandler(searchState, path, ext, reason)
+        if not Z.db.profile.pathfinding or type(self.FindNPC_Smart) ~= "function" then
+            state.commands.pendingVendorFallback = nil
+            return originalFindNPC(self, typ, m, f, x, y)
+        end
+
+        self.debuglast = { typ, m, f, x, y }
+        self.debugtrace = debugstack()
+
+        state.commands.vendorFallbackToken = (state.commands.vendorFallbackToken or 0) + 1
+        local token = state.commands.vendorFallbackToken
+        state.commands.pendingVendorFallback = {
+            token = token,
+            originalWay = self.CurrentWay,
+        }
+
+        local searchStarted = self:FindNPC_Smart(typ, nil, function(searchState, path, ext, reason)
+            local pending = state.commands.pendingVendorFallback
+            if not pending or pending.token ~= token then
+                return
+            end
+
+            if searchState == "progress" then
+                return
+            end
+
+            state.commands.pendingVendorFallback = nil
+
+            if searchState == "success" then
+                return originalPathFoundHandler(searchState, path, ext, reason)
+            end
+
+            if searchState == "failure" then
+                return triggerVendorFallback(self)
+            end
+
+            return originalPathFoundHandler(searchState, path, ext, reason)
+        end)
+
+        if searchStarted == false then
+            return triggerVendorFallback(self)
+        end
     end
 
     state.commands.whoWhereFallbackHooked = true
@@ -460,6 +551,12 @@ local function handleCommand(msg)
         handleAlign(rest:lower())
     elseif cmd == "override" then
         handleOverride(rest:lower())
+    elseif cmd == "manualclear" or cmd == "autoclear" then
+        handleManualClear(rest:lower())
+    elseif cmd == "cleardistance" then
+        handleClearDistance(rest)
+    elseif cmd == "compact" or cmd == "guidechrome" or cmd == "guidehover" then
+        handleCompact(rest:lower())
     elseif cmd == "search" then
         handleSearch(rest)
     else
