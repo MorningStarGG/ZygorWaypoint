@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1a
+- **Zygor Arrow themes**:
+  - Added Zygor Stealth TomTom skin alongside Starlight.
+  - `/zwp skin` can now switch between `default`, `starlight`, and `stealth`.
+  - The options panel can now switch between `starlight`, and `stealth`.
+  - Zygor skin scale and alignment spacing now apply to both custom TomTom skins.
+  - Specular fixes
+  - Hidden-arrow cleanup now avoids calling Zygor's arrow hide path before it exists.
+
 ## 2.1
 
 - **Guide visibility handling**

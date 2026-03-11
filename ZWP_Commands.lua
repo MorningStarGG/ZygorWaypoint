@@ -12,7 +12,7 @@ end
 
 local function usage()
     NS.Msg("Usage: /zwp status | debug | options")
-    NS.Msg("       /zwp skin default|starlight")
+    NS.Msg("       /zwp skin default|starlight|stealth")
     NS.Msg("       /zwp scale <" .. string.format("%.2f", C.SCALE_MIN) .. "-" .. string.format("%.2f", C.SCALE_MAX) .. ">")
     NS.Msg("       /zwp routing on|off|toggle")
     NS.Msg("       /zwp align on|off")
@@ -82,12 +82,12 @@ local function handleOverride(arg)
 end
 
 local function handleSkin(arg)
-    if arg == C.SKIN_DEFAULT or arg == C.SKIN_STARLIGHT then
+    if arg == C.SKIN_DEFAULT or arg == C.SKIN_STARLIGHT or arg == C.SKIN_STEALTH then
         NS.SetSkinChoice(arg)
         applySkinAndScale()
         NS.Msg("TomTom arrow skin set to:", arg)
     else
-        NS.Msg("TomTom arrow skin:", NS.GetSkinChoice(), "(use /zwp skin default|starlight)")
+        NS.Msg("TomTom arrow skin:", NS.GetSkinChoice(), "(use /zwp skin default|starlight|stealth)")
     end
 end
 

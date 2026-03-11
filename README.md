@@ -41,7 +41,7 @@ Version **2.0** changes this approach by using **TomTom as the visible navigatio
 
 ZygorWaypoint still leverages **Zygor's travel system** to calculate optimal routes, while TomTom handles the visual navigation arrow.
 
-For users who prefer the Zygor look, **Zygor's Starlight arrow skin can optionally be applied to TomTom's arrow**, preserving the Zygor visual style while keeping TomTom compatibility.
+For users who prefer the Zygor look, **Zygor's Starlight or Stealth arrow skins can optionally be applied to TomTom's arrow**, preserving the Zygor visual style while keeping TomTom compatibility.
 
 Version **2.0** is a full rewrite of the original ZygorWaypoint addon with a cleaner architecture and improved compatibility.
 
@@ -117,7 +117,7 @@ ZygorWaypoint hides Zygor's arrow graphic while leaving Zygor's travel text visi
 
 This prevents duplicate arrows on screen while allowing **TomTom's Crazy Arrow** to handle navigation.
 
-For users who prefer the Zygor look, the optional **Starlight skin** can be applied to TomTom's arrow so it visually matches the Zygor arrow style.
+For users who prefer the Zygor look, optional **Starlight** and **Stealth** skins can be applied to TomTom's arrow so it visually matches Zygor's arrow styles.
 
 ------------------------------------------------------------------------
 
@@ -132,8 +132,8 @@ Available commands:
 -   `/zwp status` --- Show addon status
 -   `/zwp debug` --- Toggle debug output
 -   `/zwp options` --- Open addon options
--   `/zwp skin default|starlight` --- Change arrow appearance
--   `/zwp scale <0.60-2.00>` --- Adjust Starlight arrow scale
+-   `/zwp skin default|starlight|stealth` --- Change arrow appearance
+-   `/zwp scale <0.60-2.00>` --- Adjust Zygor skin arrow scale
 -   `/zwp routing on|off|toggle` --- Control TomTom → Zygor routing
 -   `/zwp align on|off` --- Toggle arrow alignment
 -   `/zwp override on|off` --- Override TomTom clear-distance behavior
@@ -153,8 +153,9 @@ Available settings:
 -   Override TomTom clear-distance on login
 -   Align TomTom arrow to Zygor text
 -   Route TomTom waypoints via Zygor travel
--   Enable Zygor Starlight arrow skin
--   Adjust TomTom arrow scale (Starlight only)
+-   Enable a Zygor arrow skin for TomTom
+-   Choose between Zygor Starlight and Stealth
+-   Adjust TomTom arrow scale (Zygor skins only)
 
 Use **Apply and Reload** to apply changes.
 
@@ -216,6 +217,15 @@ These changes simplify the addon and allow ZygorWaypoint to focus entirely on it
 ------------------------------------------------------------------------
 
 # Changelog
+
+## 2.1a
+- **Zygor Arrow themes**:
+  - Added Zygor Stealth TomTom skin alongside Starlight.
+  - `/zwp skin` can now switch between `default`, `starlight`, and `stealth`.
+  - The options panel can now switch between `starlight`, and `stealth`.
+  - Zygor skin scale and alignment spacing now apply to both custom TomTom skins.
+  - Specular fixes
+  - Hidden-arrow cleanup now avoids calling Zygor's arrow hide path before it exists.
 
 ## 2.1
 

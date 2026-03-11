@@ -13,6 +13,9 @@ function NS.NormalizeSkin(value)
     if value == C.SKIN_STARLIGHT then
         return C.SKIN_STARLIGHT
     end
+    if value == C.SKIN_STEALTH then
+        return C.SKIN_STEALTH
+    end
     return C.SKIN_DEFAULT
 end
 

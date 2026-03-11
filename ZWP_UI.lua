@@ -22,6 +22,18 @@ local function UpdateScaleText(scale)
     scale.Text:SetText(string.format("TomTom Arrow Scale: %.2fx", value))
 end
 
+local function GetCustomSkinLabel(skin)
+    if skin == C.SKIN_STEALTH then
+        return "Stealth"
+    end
+    return "Starlight"
+end
+
+local function UpdateSkinChoiceText(button, skin)
+    if not button then return end
+    button:SetText("Skin: " .. GetCustomSkinLabel(skin))
+end
+
 local function ShowCopyLinkPopup(url)
     if not StaticPopupDialogs then
         NS.Msg("Twitch:", url)
@@ -103,7 +115,7 @@ function NS.CreateOptionsPanel()
 - Hides Zygor's 3D arrow while keeping guide step text visible
 - Optional alignment of TomTom's arrow with Zygor's arrow text
 - Optional routing of TomTom waypoints through Zygor's Travel System
-- Optional Zygor Starlight skin and arrow scale override for TomTom]])
+- Optional Zygor Starlight/Stealth skins and arrow scale override for TomTom]])
 
     local author = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
     author:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", 0, -10)
@@ -165,15 +177,30 @@ function NS.CreateOptionsPanel()
 
     local cb4 = CreateFrame("CheckButton", "ZWP_OptionTomTomZygorSkin_AddOns", panel, "InterfaceOptionsCheckButtonTemplate")
     cb4:SetPoint("TOPLEFT", cb3, "BOTTOMLEFT", 0, -8)
-    cb4.Text:SetText("Use Zygor Starlight Skin for TomTom Arrow")
+    cb4.Text:SetText("Use Zygor Skin for TomTom Arrow")
     SetTooltip(
         cb4,
-        "Use Zygor Starlight Skin for TomTom Arrow",
-        "When enabled, TomTom's Crazy Arrow uses Zygor Starlight art."
+        "Use Zygor Skin for TomTom Arrow",
+        "When enabled, TomTom's Crazy Arrow uses Zygor Starlight or Stealth art."
+    )
+
+    local skinChoice = CreateFrame("Button", "ZWP_OptionTomTomSkinChoice_AddOns", panel, "UIPanelButtonTemplate")
+    skinChoice:SetSize(130, 22)
+    skinChoice:SetPoint("TOPLEFT", cb4, "BOTTOMLEFT", 28, -6)
+    UpdateSkinChoiceText(skinChoice, C.SKIN_STARLIGHT)
+    skinChoice:SetScript("OnClick", function(self)
+        local nextSkin = self:GetParent().selectedCustomSkin == C.SKIN_STEALTH and C.SKIN_STARLIGHT or C.SKIN_STEALTH
+        self:GetParent().selectedCustomSkin = nextSkin
+        UpdateSkinChoiceText(self, nextSkin)
+    end)
+    SetTooltip(
+        skinChoice,
+        "TomTom Zygor Skin",
+        "Cycles between the Zygor Starlight and Stealth TomTom skins."
     )
 
     local scale = CreateFrame("Slider", "ZWP_OptionArrowScale_AddOns", panel, "OptionsSliderTemplate")
-    scale:SetPoint("TOPLEFT", cb4, "BOTTOMLEFT", 8, -24)
+    scale:SetPoint("TOPLEFT", skinChoice, "BOTTOMLEFT", -20, -24)
     scale:SetWidth(220)
     scale:SetMinMaxValues(C.SCALE_MIN, C.SCALE_MAX)
     scale:SetValueStep(C.SCALE_STEP)
@@ -188,17 +215,25 @@ function NS.CreateOptionsPanel()
     SetTooltip(
         scale,
         "TomTom Arrow Scale",
-        "Applies only when Zygor Starlight skin is enabled."
+        "Applies only when a Zygor TomTom skin is enabled."
     )
 
     cb4:SetScript("OnClick", function(self)
         scale:SetEnabled(self:GetChecked())
+        if skinChoice.Enable and skinChoice.Disable then
+            if self:GetChecked() then
+                skinChoice:Enable()
+            else
+                skinChoice:Disable()
+            end
+        end
     end)
 
     panel.cb1 = cb1
     panel.cb2 = cb2
     panel.cb3 = cb3
     panel.cb4 = cb4
+    panel.skinChoice = skinChoice
     panel.scale = scale
 
     local apply = CreateFrame("Button", "ZWP_ApplyAndReload_AddOns", panel, "UIPanelButtonTemplate")
@@ -210,7 +245,7 @@ function NS.CreateOptionsPanel()
         db.tomtomOverride = cb1:GetChecked() and true or false
         db.arrowAlignment = cb2:GetChecked() and true or false
         db.zygorRouting = cb3:GetChecked() and true or false
-        db.tomtomSkin = cb4:GetChecked() and C.SKIN_STARLIGHT or C.SKIN_DEFAULT
+        db.tomtomSkin = cb4:GetChecked() and (panel.selectedCustomSkin or C.SKIN_STARLIGHT) or C.SKIN_DEFAULT
         db.tomtomArrowScale = NS.NormalizeScale(scale:GetValue())
         NS.Msg("ZygorWaypoint options saved. Reloading UI...")
         ReloadUI()
@@ -222,11 +257,23 @@ function NS.CreateOptionsPanel()
         self.cb1:SetChecked(db.tomtomOverride)
         self.cb2:SetChecked(db.arrowAlignment)
         self.cb3:SetChecked(db.zygorRouting)
-        self.cb4:SetChecked(NS.GetSkinChoice() == C.SKIN_STARLIGHT)
+
+        local skinChoice = NS.GetSkinChoice()
+        local useCustomSkin = skinChoice ~= C.SKIN_DEFAULT
+        self.selectedCustomSkin = useCustomSkin and skinChoice or (self.selectedCustomSkin or C.SKIN_STARLIGHT)
+        self.cb4:SetChecked(useCustomSkin)
+        UpdateSkinChoiceText(self.skinChoice, self.selectedCustomSkin)
 
         self.scale:SetValue(NS.GetArrowScale())
         UpdateScaleText(self.scale)
-        self.scale:SetEnabled(self.cb4:GetChecked())
+        self.scale:SetEnabled(useCustomSkin)
+        if self.skinChoice.Enable and self.skinChoice.Disable then
+            if useCustomSkin then
+                self.skinChoice:Enable()
+            else
+                self.skinChoice:Disable()
+            end
+        end
     end)
 
     return panel

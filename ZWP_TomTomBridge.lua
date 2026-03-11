@@ -26,22 +26,25 @@ local function IsArrowWaypointSource(src)
     return src == "pointer.ArrowFrame.waypoint" or src == "pointer.arrow.waypoint"
 end
 
-local function GetStarlightAutoYOffset()
+local function GetCustomSkinAutoYOffset()
+    local skin = type(NS.GetSkinChoice) == "function" and NS.GetSkinChoice() or C.SKIN_DEFAULT
     local scale = C.SCALE_DEFAULT
     if type(NS.GetArrowScale) == "function" then
         scale = tonumber(NS.GetArrowScale()) or C.SCALE_DEFAULT
     end
 
-    -- Keep the tighter look at 1.00x, then progressively lift Starlight at larger scales
-    -- so the arrow does not overlap the text block.
-    local grow = scale - 1.0
-    if grow <= 0 then
-        return 0
-    end
+    -- Keep custom skins tight, but give Stealth a small baseline lift because its
+    -- lower edge rides closer to the travel text than Starlight does.
+    local yOffset = (skin == C.SKIN_STEALTH) and 3 or 0
 
-    local yOffset = grow * 12
-    if yOffset > 12 then
-        yOffset = 12
+    -- Progressively lift custom skins at larger scales so the arrow does not
+    -- overlap the text block.
+    local grow = scale - 1.0
+    if grow > 0 then
+        yOffset = yOffset + (grow * 12)
+        if yOffset > 15 then
+            yOffset = 15
+        end
     end
     return yOffset
 end
@@ -55,8 +58,8 @@ function NS.AlignTomTomToZygor()
     if not tomArrow then return end
 
     local yOffset = 10
-    if type(NS.GetSkinChoice) == "function" and NS.GetSkinChoice() == C.SKIN_STARLIGHT then
-        yOffset = GetStarlightAutoYOffset()
+    if type(NS.GetSkinChoice) == "function" and NS.GetSkinChoice() ~= C.SKIN_DEFAULT then
+        yOffset = GetCustomSkinAutoYOffset()
     end
 
     tomArrow:ClearAllPoints()
@@ -123,7 +126,7 @@ local function ClearHiddenGuideWaypoints()
     end
 
     local P = Z.Pointer
-    if P and type(P.HideArrow) == "function" then
+    if P and P.ArrowFrame and type(P.HideArrow) == "function" then
         P:HideArrow()
     end
 end

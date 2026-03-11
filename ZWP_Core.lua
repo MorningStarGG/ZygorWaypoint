@@ -7,7 +7,9 @@ NS.Runtime = NS.Runtime or {}
 local C = NS.Constants
 C.SKIN_DEFAULT = "default"
 C.SKIN_STARLIGHT = "starlight"
+C.SKIN_STEALTH = "stealth"
 C.THEME_STARLIGHT = "zwp-zyg-starlight"
+C.THEME_STEALTH = "zwp-zyg-stealth"
 
 C.SCALE_DEFAULT = 1.00
 C.SCALE_MIN = 0.60
