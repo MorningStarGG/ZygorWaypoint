@@ -2,7 +2,7 @@
 
 > A bridge addon that lets **Zygor Guides** and **TomTom** work together --- using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-2.3-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
+![Version](https://img.shields.io/badge/version-2.3a-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -28,7 +28,7 @@ In short:
 
 ## How It Works
 
-Zygor guide step → ZygorWaypoint → TomTom Crazy Arrow
+Zygor guide step → ZygorWaypoint → TomTom Crazy Arrow 
 TomTom waypoint  → ZygorWaypoint → Zygor Travel Routing → TomTom Crazy Arrow
 
 ### Why?
@@ -243,11 +243,14 @@ Available settings:
 
 -   Override TomTom clear-distance on login
 -   Align TomTom arrow to Zygor text
--   Route TomTom waypoints via Zygor travel
+-   Route TomTom waypoints via Zygor
 -   Show only the visible guide step rows until mouseover
 -   Enable a Zygor arrow skin for TomTom
 -   Choose between Zygor Starlight and Stealth
 -   Adjust TomTom arrow scale (Zygor skins only)
+-   Auto-Clear Manual Waypoints on Arrival with adjustable distance
+-   Manual Waypoint Clear Distance
+
 
 Most settings apply immediately.
 
@@ -311,6 +314,15 @@ These changes simplify the addon and allow ZygorWaypoint to focus entirely on it
 ------------------------------------------------------------------------
 
 # Changelog
+
+## 2.3a
+- **Guide viewer compact mode**
+  - Fixed a compact-mode restore issue where parts of Zygor's normal viewer border/background could remain suppressed after turning the feature back off.
+  - Turning compact mode off now forces an immediate full guide viewer restore instead of requiring a `/reload` to get the normal guide viewer frame back.
+
+- **Documentation**
+  - Updated the README settings list to reflect the current options, including manual waypoint auto-clear and its configurable clear distance.
+  - Adjusted wording to match the current UI label for TomTom waypoint routing through Zygor.
 
 ## 2.3
 - **Guide viewer compact mode**

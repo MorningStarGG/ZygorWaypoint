@@ -111,6 +111,19 @@ local function RestoreBackdrop(border)
     end
 end
 
+local function ApplyCompactBackdrop(border)
+    if not border or not border._zwpBackdropGuarded then
+        return
+    end
+
+    if border._zwpBgR ~= nil then
+        border._zwpOrigSetBackdropColor(border, border._zwpBgR, border._zwpBgG, border._zwpBgB, 0)
+    end
+    if border._zwpBorderR ~= nil then
+        border._zwpOrigSetBackdropBorderColor(border, border._zwpBorderR, border._zwpBorderG, border._zwpBorderB, 0)
+    end
+end
+
 local function CacheFrameCollections(frame)
     if viewer.frame == frame and viewer.managedFrames and viewer.menuHosts and viewer.hoverFrames then
         return
@@ -302,8 +315,7 @@ local function ApplyCompactChrome(frame)
     end
     GuardBackdrop(frame, frame.Border)
 
-    frame.Border:SetBackdropColor(0, 0, 0, 0)
-    frame.Border:SetBackdropBorderColor(0, 0, 0, 0)
+    ApplyCompactBackdrop(frame.Border)
 
     CacheFrameCollections(frame)
     for _, managed in ipairs(viewer.managedFrames) do
@@ -456,6 +468,10 @@ end
 function NS.RefreshZygorViewerChromeMode()
     if viewer.frame then
         viewer.lastMode = nil
+        if not NS.IsGuideStepsOnlyHoverEnabled or not NS.IsGuideStepsOnlyHoverEnabled() then
+            RestoreFullChrome(viewer.frame)
+            return
+        end
         RefreshChromeState(viewer.frame)
     end
 end

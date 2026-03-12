@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3a
+- **Guide viewer compact mode**
+  - Fixed a compact-mode restore issue where parts of Zygor's normal viewer border/background could remain suppressed after turning the feature back off.
+  - Turning compact mode off now forces an immediate full guide viewer restore instead of requiring a `/reload` to get the normal guide viewer frame back.
+
+- **Documentation**
+  - Updated the README settings list to reflect the current options, including manual waypoint auto-clear and its configurable clear distance.
+  - Adjusted wording to match the current UI label for TomTom waypoint routing through Zygor.
+
 ## 2.3
 - **Guide viewer compact mode**
   - Added an option to show only the visible guide step rows, similar to the old "Mini Mode with Tooltip" Zygor previously offered.
@@ -18,7 +27,6 @@
 - **Search fixes**
   - Refined vendor fallback handling so the repair fallback only triggers when a vendor search truly fails.
   - Chat feedback now reflects the fallback behavior more accurately.
-
 
 ## 2.2
 - **Hidden guide / waypoint control**
