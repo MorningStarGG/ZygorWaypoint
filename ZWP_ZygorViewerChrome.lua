@@ -62,12 +62,41 @@ local function CaptureBackdrop(border)
         return
     end
 
-    border._zwpBgR, border._zwpBgG, border._zwpBgB, border._zwpBgA = border:GetBackdropColor()
-    border._zwpBorderR, border._zwpBorderG, border._zwpBorderB, border._zwpBorderA = border:GetBackdropBorderColor()
+    border._zwpDesiredBgR, border._zwpDesiredBgG, border._zwpDesiredBgB, border._zwpDesiredBgA = border:GetBackdropColor()
+    border._zwpDesiredBorderR, border._zwpDesiredBorderG, border._zwpDesiredBorderB, border._zwpDesiredBorderA = border:GetBackdropBorderColor()
+end
+
+local function ApplyBackdropState(parent, border, compact)
+    if not border or not border._zwpBackdropHooked then
+        return
+    end
+
+    if viewer.frame ~= parent then
+        return
+    end
+
+    border._zwpApplyingBackdrop = true
+    if border._zwpDesiredBgR ~= nil then
+        border:SetBackdropColor(
+            border._zwpDesiredBgR,
+            border._zwpDesiredBgG,
+            border._zwpDesiredBgB,
+            compact and 0 or border._zwpDesiredBgA
+        )
+    end
+    if border._zwpDesiredBorderR ~= nil then
+        border:SetBackdropBorderColor(
+            border._zwpDesiredBorderR,
+            border._zwpDesiredBorderG,
+            border._zwpDesiredBorderB,
+            compact and 0 or border._zwpDesiredBorderA
+        )
+    end
+    border._zwpApplyingBackdrop = false
 end
 
 local function GuardBackdrop(parent, border)
-    if not border or border._zwpBackdropGuarded then
+    if not border or border._zwpBackdropHooked then
         return
     end
 
@@ -75,53 +104,29 @@ local function GuardBackdrop(parent, border)
         return
     end
 
-    border._zwpOrigSetBackdropColor = border.SetBackdropColor
-    border._zwpOrigSetBackdropBorderColor = border.SetBackdropBorderColor
     CaptureBackdrop(border)
 
-    border.SetBackdropColor = function(self, r, g, b, a, ...)
-        self._zwpBgR, self._zwpBgG, self._zwpBgB, self._zwpBgA = r, g, b, a
-        if viewer.compactApplied and viewer.frame == parent then
-            return self._zwpOrigSetBackdropColor(self, r or 0, g or 0, b or 0, 0, ...)
+    hooksecurefunc(border, "SetBackdropColor", function(self, r, g, b, a)
+        if self._zwpApplyingBackdrop then
+            return
         end
-        return self._zwpOrigSetBackdropColor(self, r, g, b, a, ...)
-    end
-
-    border.SetBackdropBorderColor = function(self, r, g, b, a, ...)
-        self._zwpBorderR, self._zwpBorderG, self._zwpBorderB, self._zwpBorderA = r, g, b, a
+        self._zwpDesiredBgR, self._zwpDesiredBgG, self._zwpDesiredBgB, self._zwpDesiredBgA = r, g, b, a
         if viewer.compactApplied and viewer.frame == parent then
-            return self._zwpOrigSetBackdropBorderColor(self, r or 0, g or 0, b or 0, 0, ...)
+            ApplyBackdropState(parent, self, true)
         end
-        return self._zwpOrigSetBackdropBorderColor(self, r, g, b, a, ...)
-    end
+    end)
 
-    border._zwpBackdropGuarded = true
-end
+    hooksecurefunc(border, "SetBackdropBorderColor", function(self, r, g, b, a)
+        if self._zwpApplyingBackdrop then
+            return
+        end
+        self._zwpDesiredBorderR, self._zwpDesiredBorderG, self._zwpDesiredBorderB, self._zwpDesiredBorderA = r, g, b, a
+        if viewer.compactApplied and viewer.frame == parent then
+            ApplyBackdropState(parent, self, true)
+        end
+    end)
 
-local function RestoreBackdrop(border)
-    if not border or not border._zwpBackdropGuarded then
-        return
-    end
-
-    if border._zwpBgR ~= nil then
-        border._zwpOrigSetBackdropColor(border, border._zwpBgR, border._zwpBgG, border._zwpBgB, border._zwpBgA)
-    end
-    if border._zwpBorderR ~= nil then
-        border._zwpOrigSetBackdropBorderColor(border, border._zwpBorderR, border._zwpBorderG, border._zwpBorderB, border._zwpBorderA)
-    end
-end
-
-local function ApplyCompactBackdrop(border)
-    if not border or not border._zwpBackdropGuarded then
-        return
-    end
-
-    if border._zwpBgR ~= nil then
-        border._zwpOrigSetBackdropColor(border, border._zwpBgR, border._zwpBgG, border._zwpBgB, 0)
-    end
-    if border._zwpBorderR ~= nil then
-        border._zwpOrigSetBackdropBorderColor(border, border._zwpBorderR, border._zwpBorderG, border._zwpBorderB, 0)
-    end
+    border._zwpBackdropHooked = true
 end
 
 local function CacheFrameCollections(frame)
@@ -157,87 +162,99 @@ local function CacheFrameCollections(frame)
     )
 end
 
+local SyncManagedFrame
+
 local function GuardManagedFrame(parent, managed)
-    if not managed or managed._zwpCompactGuarded then
+    if not managed or managed._zwpCompactHooked then
         return
     end
 
-    managed._zwpOrigShow = managed.Show
-    managed._zwpOrigHide = managed.Hide
-    managed._zwpOrigSetShown = managed.SetShown
-    managed._zwpOrigSetAlpha = managed.SetAlpha
     managed._zwpDesiredShown = managed:IsShown()
-    if managed.GetAlpha and managed._zwpOrigSetAlpha then
+    if managed.GetAlpha and type(managed.SetAlpha) == "function" then
         managed._zwpDesiredAlpha = managed:GetAlpha()
     end
 
-    managed.Show = function(self, ...)
-        self._zwpDesiredShown = true
-        if viewer.compactApplied and viewer.frame == parent then
-            if self._zwpOrigSetAlpha then
-                self._zwpOrigSetAlpha(self, 0)
+    if type(managed.Show) == "function" then
+        hooksecurefunc(managed, "Show", function(self)
+            if self._zwpApplyingCompact then
+                return
             end
-            return self._zwpOrigHide(self)
-        end
-        return self._zwpOrigShow(self, ...)
+            self._zwpDesiredShown = true
+            if viewer.compactApplied and viewer.frame == parent then
+                SyncManagedFrame(self, true)
+            end
+        end)
     end
 
-    managed.Hide = function(self, ...)
-        self._zwpDesiredShown = false
-        return self._zwpOrigHide(self, ...)
+    if type(managed.Hide) == "function" then
+        hooksecurefunc(managed, "Hide", function(self)
+            if self._zwpApplyingCompact then
+                return
+            end
+            self._zwpDesiredShown = false
+        end)
     end
 
-    if managed._zwpOrigSetShown then
-        managed.SetShown = function(self, shown, ...)
+    if type(managed.SetShown) == "function" then
+        hooksecurefunc(managed, "SetShown", function(self, shown)
+            if self._zwpApplyingCompact then
+                return
+            end
             self._zwpDesiredShown = shown and true or false
-            if shown then
-                if viewer.compactApplied and viewer.frame == parent then
-                    if self._zwpOrigSetAlpha then
-                        self._zwpOrigSetAlpha(self, 0)
-                    end
-                    return self._zwpOrigHide(self)
-                end
-                return self._zwpOrigShow(self, ...)
+            if viewer.compactApplied and viewer.frame == parent and shown then
+                SyncManagedFrame(self, true)
             end
-            return self._zwpOrigHide(self, ...)
-        end
+        end)
     end
 
-    if managed._zwpOrigSetAlpha then
-        managed.SetAlpha = function(self, alpha, ...)
+    if type(managed.SetAlpha) == "function" then
+        hooksecurefunc(managed, "SetAlpha", function(self, alpha)
+            if self._zwpApplyingCompact then
+                return
+            end
             self._zwpDesiredAlpha = alpha
             if viewer.compactApplied and viewer.frame == parent then
-                return self._zwpOrigSetAlpha(self, 0, ...)
+                SyncManagedFrame(self, true)
             end
-            return self._zwpOrigSetAlpha(self, alpha, ...)
-        end
+        end)
     end
 
-    managed._zwpCompactGuarded = true
+    managed._zwpCompactHooked = true
 end
 
-local function SyncManagedFrame(managed, compact)
-    if not managed or not managed._zwpCompactGuarded then
+SyncManagedFrame = function(managed, compact)
+    if not managed or not managed._zwpCompactHooked then
         return
     end
 
+    managed._zwpApplyingCompact = true
+
     if compact then
-        if managed._zwpOrigSetAlpha then
-            managed._zwpOrigSetAlpha(managed, 0)
+        if type(managed.SetAlpha) == "function" and managed._zwpDesiredAlpha ~= nil then
+            managed:SetAlpha(0)
         end
-        managed._zwpOrigHide(managed)
+        if type(managed.Hide) == "function" then
+            managed:Hide()
+        end
+        managed._zwpApplyingCompact = false
         return
     end
 
     if managed._zwpDesiredShown == false then
-        managed._zwpOrigHide(managed)
+        if type(managed.Hide) == "function" then
+            managed:Hide()
+        end
     else
-        managed._zwpOrigShow(managed)
+        if type(managed.Show) == "function" then
+            managed:Show()
+        end
     end
 
-    if managed._zwpOrigSetAlpha and managed._zwpDesiredAlpha ~= nil then
-        managed._zwpOrigSetAlpha(managed, managed._zwpDesiredAlpha)
+    if type(managed.SetAlpha) == "function" and managed._zwpDesiredAlpha ~= nil then
+        managed:SetAlpha(managed._zwpDesiredAlpha)
     end
+
+    managed._zwpApplyingCompact = false
 end
 
 local function IsGuideMenuOpen(frame)
@@ -310,12 +327,8 @@ local function ApplyCompactChrome(frame)
         return
     end
 
-    if not viewer.compactApplied then
-        CaptureBackdrop(frame.Border)
-    end
     GuardBackdrop(frame, frame.Border)
-
-    ApplyCompactBackdrop(frame.Border)
+    ApplyBackdropState(frame, frame.Border, true)
 
     CacheFrameCollections(frame)
     for _, managed in ipairs(viewer.managedFrames) do
@@ -330,7 +343,8 @@ local function RestoreFullChrome(frame)
         return
     end
 
-    RestoreBackdrop(frame.Border)
+    GuardBackdrop(frame, frame.Border)
+    ApplyBackdropState(frame, frame.Border, false)
 
     CacheFrameCollections(frame)
     for _, managed in ipairs(viewer.managedFrames) do

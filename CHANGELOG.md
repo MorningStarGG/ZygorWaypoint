@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3b
+- **Guide viewer compact mode**
+  - Reworked the compact viewer implementation to stop replacing methods on the Zygor guide viewer frame.
+  - Switched to a hook-and-restore approach that preserves our current hover behavior while avoiding LUA taint (somehow) issues discovered in Blizzard unit and nameplate code.
+
 ## 2.3a
 - **Guide viewer compact mode**
   - Fixed a compact-mode restore issue where parts of Zygor's normal viewer border/background could remain suppressed after turning the feature back off.

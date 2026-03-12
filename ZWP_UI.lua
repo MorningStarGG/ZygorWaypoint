@@ -9,16 +9,19 @@ local TWITCH_COPY_POPUP = "ZWP_COPY_TWITCH_URL"
 local RELOAD_RECOMMENDED_POPUP = "ZWP_RELOAD_RECOMMENDED"
 local ABOUT_SUMMARY = "A bridge between Zygor Guides and TomTom's Crazy Arrow."
 local ABOUT_DESCRIPTION = table.concat({
-    "ZygorWaypoint drives TomTom's Crazy Arrow using Zygor's active guide destination.",
+    "ZygorWaypoint bridges Zygor Guides and TomTom, using TomTom's Crazy Arrow for navigation while Zygor handles travel routing.",
     "",
-    "- Uses Zygor's Travel System to calculate navigation routes",
-    "- Displays TomTom's Crazy Arrow for waypoint navigation",
-    "- Hides Zygor's 3D arrow while keeping guide step text visible",
-    "- Optional alignment of TomTom's arrow with Zygor's arrow text",
+    "- Uses Zygor's Travel System to calculate optimal navigation routes",
+    "- Displays TomTom's Crazy Arrow as the navigation arrow",
+    "- Hides Zygor's arrow while keeping navigation text visible",
     "- Optional routing of TomTom waypoints through Zygor's Travel System",
-    "- Optional Zygor Starlight/Stealth skins and arrow scale override for TomTom",
+    "- Optional alignment of TomTom's arrow with Zygor's navigation text",
+    "- Optional Zygor Starlight or Stealth skins for TomTom's arrow",
+    "- Optional arrow scale control when using Zygor skins",
+    "- Optional manual waypoint auto-clear on arrival with distance control",
+    "- `/zwp search` commands for routing to common NPCs/Objects",
 }, "\n")
-local ABOUT_CARD_HEIGHT = 320
+local ABOUT_CARD_HEIGHT = 340
 
 local DEFAULTS = {
     tomtomOverride = true,

@@ -2,7 +2,7 @@
 
 > A bridge addon that lets **Zygor Guides** and **TomTom** work together --- using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-2.3a-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
+![Version](https://img.shields.io/badge/version-2.3b-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -28,7 +28,8 @@ In short:
 
 ## How It Works
 
-Zygor guide step → ZygorWaypoint → TomTom Crazy Arrow 
+Zygor guide step → ZygorWaypoint → TomTom Crazy Arrow
+
 TomTom waypoint  → ZygorWaypoint → Zygor Travel Routing → TomTom Crazy Arrow
 
 ### Why?
@@ -314,6 +315,11 @@ These changes simplify the addon and allow ZygorWaypoint to focus entirely on it
 ------------------------------------------------------------------------
 
 # Changelog
+
+## 2.3b
+- **Guide viewer compact mode**
+  - Reworked the compact viewer implementation to stop replacing methods on the Zygor guide viewer frame.
+  - Switched to a hook-and-restore approach that preserves our current hover behavior while avoiding LUA taint (somehow) issues discovered in Blizzard unit and nameplate aura code.
 
 ## 2.3a
 - **Guide viewer compact mode**
