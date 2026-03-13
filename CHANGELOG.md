@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3c
+- **TomTom / Zygor startup synchronization**
+  - Deferred TomTom → Zygor routing until Zygor's pointer arrow frame is fully initialized, preventing startup LUA errors when other addons create TomTom waypoints early during login or `/reload`.
+  - Added a startup adoption pass so existing TomTom waypoints can be picked up by Zygor once both addons finish loading, including cases where the guide viewer starts hidden.
+
+- **Waypoint clear synchronization**
+  - Improved timing when Zygor clears waypoints so the mirrored TomTom arrow updates on the next frame instead of waiting for the bridge heartbeat.
+  - Clearing the mirrored TomTom waypoint now also clears the linked Zygor manual destination, including the lingering Zygor navigation text and manual pin during TomTom reset/remove actions.
+
 ## 2.3b
 - **Guide viewer compact mode**
   - Reworked the compact viewer implementation to stop replacing methods on the Zygor guide viewer frame.

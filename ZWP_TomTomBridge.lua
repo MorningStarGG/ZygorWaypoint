@@ -21,6 +21,7 @@ state.bridge = state.bridge or {
     heartbeatElapsed = 0,
     manualAutoClearWaypoint = nil,
     manualAutoClearArmed = false,
+    suppressTomTomClearSync = 0,
 }
 
 local bridge = state.bridge
@@ -119,9 +120,28 @@ local function ResetManualAutoClearState()
     bridge.manualAutoClearArmed = false
 end
 
+function NS.WithTomTomClearSyncSuppressed(fn)
+    if type(fn) ~= "function" then
+        return
+    end
+
+    bridge.suppressTomTomClearSync = (bridge.suppressTomTomClearSync or 0) + 1
+    local ok, err = pcall(fn)
+    bridge.suppressTomTomClearSync = math.max((bridge.suppressTomTomClearSync or 1) - 1, 0)
+    if not ok then
+        error(err)
+    end
+end
+
 local function RemoveBridgeWaypoint()
     if bridge.lastUID and TomTom and type(TomTom.RemoveWaypoint) == "function" then
-        TomTom:RemoveWaypoint(bridge.lastUID)
+        if type(NS.WithTomTomClearSyncSuppressed) == "function" then
+            NS.WithTomTomClearSyncSuppressed(function()
+                TomTom:RemoveWaypoint(bridge.lastUID)
+            end)
+        else
+            TomTom:RemoveWaypoint(bridge.lastUID)
+        end
     end
     bridge.lastUID = nil
 
@@ -402,6 +422,30 @@ local function SyncGuideVisibilityState()
     return current
 end
 
+function NS.HandleTomTomMirrorCleared(uid)
+    if not uid or uid ~= bridge.lastUID then
+        return false
+    end
+
+    if (bridge.suppressTomTomClearSync or 0) > 0 then
+        return false
+    end
+
+    local visibilityState = SyncGuideVisibilityState()
+    if not visibilityState then
+        return false
+    end
+
+    local destination = GetActiveManualDestination()
+    if destination then
+        return ClearActiveManualDestination(visibilityState)
+    end
+
+    ClearBridgeMirror()
+    ResetManualAutoClearState()
+    return true
+end
+
 local function pushTomTom(m, x, y, title, src)
     if not TomTom or not TomTom.AddWaypoint or not TomTom.SetCrazyArrow then
         NS.Msg("TomTom not found (need AddWaypoint + SetCrazyArrow).")
@@ -415,7 +459,13 @@ local function pushTomTom(m, x, y, title, src)
     if not (m and x and y) then return end
 
     if bridge.lastUID and TomTom.RemoveWaypoint then
-        TomTom:RemoveWaypoint(bridge.lastUID)
+        if type(NS.WithTomTomClearSyncSuppressed) == "function" then
+            NS.WithTomTomClearSyncSuppressed(function()
+                TomTom:RemoveWaypoint(bridge.lastUID)
+            end)
+        else
+            TomTom:RemoveWaypoint(bridge.lastUID)
+        end
         bridge.lastUID = nil
     end
 
@@ -604,6 +654,12 @@ function NS.HookZygorTickHooks()
 
     if P and type(P.SetWaypoint) == "function" then
         hooksecurefunc(P, "SetWaypoint", function() NS.TickUpdate() end)
+    end
+
+    if P and type(P.ClearWaypoints) == "function" then
+        hooksecurefunc(P, "ClearWaypoints", function()
+            NS.After(0, NS.TickUpdate)
+        end)
     end
 
     bridge.zygorTickHooked = true

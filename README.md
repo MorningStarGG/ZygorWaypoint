@@ -2,7 +2,7 @@
 
 > A bridge addon that lets **Zygor Guides** and **TomTom** work together --- using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-2.3b-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
+![Version](https://img.shields.io/badge/version-2.3c-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -315,6 +315,15 @@ These changes simplify the addon and allow ZygorWaypoint to focus entirely on it
 ------------------------------------------------------------------------
 
 # Changelog
+
+## 2.3c
+- **TomTom / Zygor startup synchronization**
+  - Deferred TomTom → Zygor routing until Zygor's pointer arrow frame is fully initialized, preventing startup LUA errors when other addons create TomTom waypoints early during login or `/reload`.
+  - Added a startup adoption pass so existing TomTom waypoints can be picked up by Zygor once both addons finish loading, including cases where the guide viewer starts hidden.
+
+- **Waypoint clear synchronization**
+  - Improved timing when Zygor clears waypoints so the mirrored TomTom arrow updates on the next frame instead of waiting for the bridge heartbeat.
+  - Clearing the mirrored TomTom waypoint now also clears the linked Zygor manual destination, including the lingering Zygor navigation text and manual pin during TomTom reset/remove actions.
 
 ## 2.3b
 - **Guide viewer compact mode**
