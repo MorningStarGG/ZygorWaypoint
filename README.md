@@ -2,7 +2,7 @@
 
 > A bridge addon that lets **Zygor Guides** and **TomTom** work together --- using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-2.4-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
+![Version](https://img.shields.io/badge/version-2.4a-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -283,6 +283,12 @@ If an addon creates a TomTom waypoint, ZygorWaypoint can route it through Zygor'
 ------------------------------------------------------------------------
 
 # Changelog
+
+## 2.4a
+- **Globals & Linting cleanup**
+  - Cleaned up LUA warnings across the bridge, routing, commands, UI, and custom arrow theme files by replacing direct global lookups with safer `_G[...]` accessors and small local helpers.
+  - Added a targeted diagnostic suppression for the valid `HereBeDragons:GetPlayerZonePosition(true)` method call, which some editors incorrectly flag because of LUA method-call syntax.
+  - Adjusted a few local variable shapes in the custom arrow theme bridge so editor type inference no longer reports false-positive cast warnings.
 
 ## 2.4
 - **Scene / cinematic handling**

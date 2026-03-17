@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4a
+- **Globals & Linting cleanup**
+  - Cleaned up LUA warnings across the bridge, routing, commands, UI, and custom arrow theme files by replacing direct global lookups with safer `_G[...]` accessors and small local helpers.
+  - Added a targeted diagnostic suppression for the valid `HereBeDragons:GetPlayerZonePosition(true)` method call, which some editors incorrectly flag because of LUA method-call syntax.
+  - Adjusted a few local variable shapes in the custom arrow theme bridge so editor type inference no longer reports false-positive cast warnings.
+
 ## 2.4
 - **Scene / cinematic handling**
   - Added bridge handling for cinematic cutscenes and other UI-hidden states (including Vista Points) so waypoint state is preserved. Detection prioritizes event-driven cinematics, then falls back to full UI-hidden states, with clean resynchronization afterward.

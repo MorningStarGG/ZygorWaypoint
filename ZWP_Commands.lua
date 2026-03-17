@@ -160,6 +160,7 @@ local function usage()
 end
 
 local function applySkinAndScale()
+    local tomtom = _G["TomTom"]
     NS.ApplyTomTomScalePolicy()
     NS.HookTomTomThemeBridge()
     NS.ApplyTomTomArrowSkin()
@@ -168,8 +169,8 @@ local function applySkinAndScale()
         NS.AlignTomTomToZygor()
         NS.HookUnifiedArrowDrag()
     end
-    if TomTom and type(TomTom.ShowHideCrazyArrow) == "function" then
-        TomTom:ShowHideCrazyArrow()
+    if tomtom and type(tomtom.ShowHideCrazyArrow) == "function" then
+        tomtom:ShowHideCrazyArrow()
     end
 end
 
@@ -215,11 +216,12 @@ local function handleAlign(arg)
 end
 
 local function handleOverride(arg)
+    local tomtom = _G["TomTom"]
     local db = NS.GetDB()
     if arg == "on" then
         db.tomtomOverride = true
-        if TomTom and TomTom.db and TomTom.db.profile and TomTom.db.profile.persistence then
-            TomTom.db.profile.persistence.cleardistance = 0
+        if tomtom and tomtom.db and tomtom.db.profile and tomtom.db.profile.persistence then
+            tomtom.db.profile.persistence.cleardistance = 0
         end
         NS.Msg("TomTom clear-distance override: enabled")
     elseif arg == "off" then
@@ -319,12 +321,13 @@ local function handleCompact(arg)
 end
 
 local function handleStatus()
+    local tomtom = _G["TomTom"]
     local Z = NS.ZGV()
     local stepTitle = Z and Z.CurrentStep and Z.CurrentStep.title
     NS.Msg(
         "Status - Zygor:", Z and "found" or "missing",
         "Step:", stepTitle or "nil",
-        "TomTom:", TomTom and "found" or "missing",
+        "TomTom:", tomtom and "found" or "missing",
         "Routing:", NS.IsRoutingEnabled() and "on" or "off",
         "Skin:", NS.GetSkinChoice(),
         "Scale:", NS.GetArrowScale(),
@@ -534,7 +537,7 @@ local function diagSnapshot()
     local Z = NS.ZGV()
     local P = Z and Z.Pointer
     local af = P and P.ArrowFrame
-    local tom = _G.TomTomCrazyArrow
+    local tom = _G["TomTomCrazyArrow"]
     local b = state.bridge or {}
 
     local ic = InCinematic and InCinematic() or false

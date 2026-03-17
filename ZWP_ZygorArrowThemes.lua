@@ -9,6 +9,14 @@ state.theme = state.theme or {
 
 local themeState = state.theme
 
+local function GetTomTom()
+    return _G["TomTom"]
+end
+
+local function GetTomTomArrow()
+    return _G["TomTomCrazyArrow"]
+end
+
 local ZYGOR_THEME_DEFS = {
     [C.SKIN_STARLIGHT] = {
         themeKey = C.THEME_STARLIGHT,
@@ -120,16 +128,17 @@ local function BuildSpecialTexCoord(col, row, cols, rows, padding)
 end
 
 local function GetDirectionColor(themeDef, angle)
+    local tomtom = GetTomTom()
     local r, g, b = 1, 1, 1
 
-    if TomTom and TomTom.db and TomTom.db.profile and TomTom.db.profile.arrow and TomTom.ColorGradient then
-        local profile = TomTom.db.profile.arrow
+    if tomtom and tomtom.db and tomtom.db.profile and tomtom.db.profile.arrow and tomtom.ColorGradient then
+        local profile = tomtom.db.profile.arrow
         local perc = math.abs((math.pi - math.abs(angle or 0)) / math.pi)
 
         local gr, gg, gb = unpack(profile.goodcolor or { 0, 1, 0 })
         local mr, mg, mb = unpack(profile.middlecolor or { 1, 1, 0 })
         local br, bg, bb = unpack(profile.badcolor or { 1, 0, 0 })
-        r, g, b = TomTom:ColorGradient(perc, br, bg, bb, mr, mg, mb, gr, gg, gb)
+        r, g, b = tomtom:ColorGradient(perc, br, bg, bb, mr, mg, mb, gr, gg, gb)
 
         if perc > 0.98 and profile.exactcolor then
             r, g, b = unpack(profile.exactcolor)
@@ -376,9 +385,10 @@ end
 
 local function RegisterTomTomThemes()
     if themeState.registered then return true end
-    if not TomTom or not TomTom.CrazyArrowThemeHandler then return false end
+    local tomtom = GetTomTom()
+    if not tomtom or not tomtom.CrazyArrowThemeHandler then return false end
 
-    local handler = TomTom.CrazyArrowThemeHandler
+    local handler = tomtom.CrazyArrowThemeHandler
     if type(handler.RegisterCrazyArrowTheme) ~= "function" then return false end
 
     for _, themeDef in pairs(ZYGOR_THEME_DEFS) do
@@ -390,20 +400,24 @@ local function RegisterTomTomThemes()
 end
 
 function NS.ApplyTomTomArrowSkin()
-    if not TomTom or not TomTom.CrazyArrowThemeHandler then return end
+    local tomtom = GetTomTom()
+    if not tomtom or not tomtom.CrazyArrowThemeHandler then return end
 
-    local wayframe = _G.TomTomCrazyArrow
+    local wayframe = GetTomTomArrow()
     if not wayframe then return end
 
-    local handler = TomTom.CrazyArrowThemeHandler
+    local handler = tomtom.CrazyArrowThemeHandler
     local choice = NS.GetSkinChoice()
     local themeDef = GetThemeDefForSkin(choice)
 
     if not themeDef then
         local active = (handler.GetActiveTheme and handler:GetActiveTheme()) or handler.activeKey
         if NS.IsThemeKey(active) then
-            local fallback = (TomTom.db and TomTom.db.profile and TomTom.db.profile.arrow and TomTom.db.profile.arrow.theme) or "modern"
-            if NS.IsThemeKey(fallback) then
+            local fallback
+            if tomtom.db and tomtom.db.profile and tomtom.db.profile.arrow then
+                fallback = tomtom.db.profile.arrow.theme
+            end
+            if not fallback or NS.IsThemeKey(fallback) then
                 fallback = "modern"
             end
 
@@ -444,18 +458,19 @@ end
 
 function NS.HookTomTomThemeBridge()
     if themeState.bridgeHooked then return end
-    if not TomTom then return end
+    local tomtom = GetTomTom()
+    if not tomtom then return end
 
     themeState.bridgeHooked = true
 
-    if type(TomTom.ShowHideCrazyArrow) == "function" then
-        hooksecurefunc(TomTom, "ShowHideCrazyArrow", function()
+    if type(tomtom.ShowHideCrazyArrow) == "function" then
+        hooksecurefunc(tomtom, "ShowHideCrazyArrow", function()
             NS.After(0, NS.ApplyTomTomArrowSkin)
         end)
     end
 
-    if type(TomTom.SetCrazyArrow) == "function" then
-        hooksecurefunc(TomTom, "SetCrazyArrow", function()
+    if type(tomtom.SetCrazyArrow) == "function" then
+        hooksecurefunc(tomtom, "SetCrazyArrow", function()
             NS.After(0, NS.ApplyTomTomArrowSkin)
         end)
     end

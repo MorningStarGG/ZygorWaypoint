@@ -23,6 +23,18 @@ local ABOUT_DESCRIPTION = table.concat({
 }, "\n")
 local ABOUT_CARD_HEIGHT = 340
 
+local function GetTomTom()
+    return _G["TomTom"]
+end
+
+local function GetStaticPopupPreferredIndex()
+    return _G["STATICPOPUP_NUMDIALOGS"] or 4
+end
+
+local function GetLegacyAddOnMetadata()
+    return _G["GetAddOnMetadata"]
+end
+
 local DEFAULTS = {
     tomtomOverride = true,
     arrowAlignment = true,
@@ -52,7 +64,7 @@ local function ShowCopyLinkPopup(url)
             timeout = 0,
             whileDead = 1,
             hideOnEscape = 1,
-            preferredIndex = STATICPOPUP_NUMDIALOGS,
+            preferredIndex = GetStaticPopupPreferredIndex(),
             OnShow = function(self, data)
                 local editBox = self.EditBox or self.editBox
                 if not editBox then return end
@@ -89,7 +101,7 @@ local function ShowReloadRecommendedPopup(settingName)
             timeout = 0,
             whileDead = 1,
             hideOnEscape = 1,
-            preferredIndex = STATICPOPUP_NUMDIALOGS,
+            preferredIndex = GetStaticPopupPreferredIndex(),
             OnAccept = function()
                 ReloadUI()
             end,
@@ -104,6 +116,7 @@ local function ShowReloadRecommendedPopup(settingName)
 end
 
 local function ApplySkinAndScale()
+    local tomtom = GetTomTom()
     NS.ApplyTomTomScalePolicy()
 
     if NS.HookTomTomThemeBridge then
@@ -119,8 +132,8 @@ local function ApplySkinAndScale()
         NS.HookUnifiedArrowDrag()
     end
 
-    if TomTom and type(TomTom.ShowHideCrazyArrow) == "function" then
-        TomTom:ShowHideCrazyArrow()
+    if tomtom and type(tomtom.ShowHideCrazyArrow) == "function" then
+        tomtom:ShowHideCrazyArrow()
     end
 end
 
@@ -137,8 +150,11 @@ local function GetAddonMetadataValue(field, fallback)
     local value
     if C_AddOns and type(C_AddOns.GetAddOnMetadata) == "function" then
         value = C_AddOns.GetAddOnMetadata(ADDON_NAME, field)
-    elseif type(GetAddOnMetadata) == "function" then
-        value = GetAddOnMetadata(ADDON_NAME, field)
+    else
+        local legacyGetAddOnMetadata = GetLegacyAddOnMetadata()
+        if type(legacyGetAddOnMetadata) == "function" then
+            value = legacyGetAddOnMetadata(ADDON_NAME, field)
+        end
     end
 
     if value == nil or value == "" then
@@ -334,12 +350,13 @@ local function InitializeOptionsPanel()
             return NS.GetDB().tomtomOverride ~= false
         end,
         function(value)
+            local tomtom = GetTomTom()
             local db = NS.GetDB()
             local oldValue = db.tomtomOverride ~= false
             local newValue = value and true or false
             db.tomtomOverride = newValue
-            if value and TomTom and TomTom.db and TomTom.db.profile and TomTom.db.profile.persistence then
-                TomTom.db.profile.persistence.cleardistance = 0
+            if value and tomtom and tomtom.db and tomtom.db.profile and tomtom.db.profile.persistence then
+                tomtom.db.profile.persistence.cleardistance = 0
             end
             if oldValue ~= newValue then
                 ShowReloadRecommendedPopup("Override TomTom Clear Distance on Login")

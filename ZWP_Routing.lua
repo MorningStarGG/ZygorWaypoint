@@ -104,19 +104,20 @@ local function IsExternalTomTomWaypoint(uid)
 end
 
 local function GetActiveTomTomWaypointCandidate()
-    if not TomTom or type(TomTom.IsCrazyArrowEmpty) ~= "function" or TomTom:IsCrazyArrowEmpty() then
+    local tomtom = _G["TomTom"]
+    if not tomtom or type(tomtom.IsCrazyArrowEmpty) ~= "function" or tomtom:IsCrazyArrowEmpty() then
         return
     end
 
-    if type(TomTom.GetDistanceToWaypoint) ~= "function" or type(TomTom.waypoints) ~= "table" then
+    if type(tomtom.GetDistanceToWaypoint) ~= "function" or type(tomtom.waypoints) ~= "table" then
         return
     end
 
     local bestUID, bestDistance
-    for _, mapWaypoints in pairs(TomTom.waypoints) do
+    for _, mapWaypoints in pairs(tomtom.waypoints) do
         for _, uid in pairs(mapWaypoints) do
             if IsExternalTomTomWaypoint(uid) then
-                local distance = TomTom:GetDistanceToWaypoint(uid)
+                local distance = tomtom:GetDistanceToWaypoint(uid)
                 if distance and (not bestDistance or distance < bestDistance) then
                     bestDistance = distance
                     bestUID = uid
@@ -178,11 +179,12 @@ end
 
 function NS.HookTomTomRouting()
     if routing.hooked then return end
-    if not TomTom or type(TomTom.AddWaypoint) ~= "function" then return end
+    local tomtom = _G["TomTom"]
+    if not tomtom or type(tomtom.AddWaypoint) ~= "function" then return end
 
     routing.hooked = true
 
-    hooksecurefunc(TomTom, "AddWaypoint", function(_, mapID, x, y, opts)
+    hooksecurefunc(tomtom, "AddWaypoint", function(_, mapID, x, y, opts)
         if not NS.IsRoutingEnabled() then return end
         if not mapID or not x or not y then return end
 
@@ -192,8 +194,8 @@ function NS.HookTomTomRouting()
         NS.RouteViaZygor(mapID, x, y)
     end)
 
-    if type(TomTom.ClearWaypoint) == "function" then
-        hooksecurefunc(TomTom, "ClearWaypoint", function(_, uid)
+    if type(tomtom.ClearWaypoint) == "function" then
+        hooksecurefunc(tomtom, "ClearWaypoint", function(_, uid)
             local bridge = NS.State and NS.State.bridge
             if bridge and (bridge.suppressTomTomClearSync or 0) > 0 then
                 return

@@ -32,6 +32,14 @@ local function IsArrowWaypointSource(src)
     return src == "pointer.ArrowFrame.waypoint" or src == "pointer.arrow.waypoint"
 end
 
+local function GetTomTom()
+    return _G["TomTom"]
+end
+
+local function GetTomTomArrow()
+    return _G["TomTomCrazyArrow"]
+end
+
 local function GetCustomSkinAutoYOffset()
     local skin = type(NS.GetSkinChoice) == "function" and NS.GetSkinChoice() or C.SKIN_DEFAULT
     local scale = C.SCALE_DEFAULT
@@ -60,7 +68,7 @@ function NS.AlignTomTomToZygor()
     if not Z or not Z.Pointer or not Z.Pointer.ArrowFrame then return end
 
     local zygorFrame = Z.Pointer.ArrowFrame
-    local tomArrow = _G.TomTomCrazyArrow
+    local tomArrow = GetTomTomArrow()
     if not tomArrow then return end
 
     local yOffset = 10
@@ -79,7 +87,7 @@ function NS.HookUnifiedArrowDrag()
     if not Z or not Z.Pointer or not Z.Pointer.ArrowFrame then return end
 
     local zFrame = Z.Pointer.ArrowFrame
-    local tFrame = _G.TomTomCrazyArrow
+    local tFrame = GetTomTomArrow()
     if not tFrame then return end
 
     zFrame:SetMovable(true)
@@ -135,13 +143,14 @@ function NS.WithTomTomClearSyncSuppressed(fn)
 end
 
 local function RemoveBridgeWaypoint()
-    if bridge.lastUID and TomTom and type(TomTom.RemoveWaypoint) == "function" then
+    local tomtom = GetTomTom()
+    if bridge.lastUID and tomtom and type(tomtom.RemoveWaypoint) == "function" then
         if type(NS.WithTomTomClearSyncSuppressed) == "function" then
             NS.WithTomTomClearSyncSuppressed(function()
-                TomTom:RemoveWaypoint(bridge.lastUID)
+                tomtom:RemoveWaypoint(bridge.lastUID)
             end)
         else
-            TomTom:RemoveWaypoint(bridge.lastUID)
+            tomtom:RemoveWaypoint(bridge.lastUID)
         end
     end
     bridge.lastUID = nil
@@ -205,6 +214,7 @@ local function GetWaypointDistanceYards(waypoint)
         return
     end
 
+    ---@diagnostic disable-next-line: redundant-parameter
     local px, py, pm = HBD:GetPlayerZonePosition(true)
     if not (px and py and pm) then
         return
@@ -443,7 +453,7 @@ local function SyncGuideVisibilityState()
     -- Re-apply TomTom mouse protection after cinematics, which can
     -- reset EnableMouse during the UI show/hide cycle.
     if previous == "cinematic" and bridge.unifiedDragHooked then
-        local ta = _G.TomTomCrazyArrow
+        local ta = GetTomTomArrow()
         if ta then
             ta:EnableMouse(false)
         end
@@ -494,7 +504,8 @@ function NS.HandleTomTomMirrorCleared(uid)
 end
 
 local function pushTomTom(m, x, y, title, src)
-    if not TomTom or not TomTom.AddWaypoint or not TomTom.SetCrazyArrow then
+    local tomtom = GetTomTom()
+    if not tomtom or not tomtom.AddWaypoint or not tomtom.SetCrazyArrow then
         NS.Msg("TomTom not found (need AddWaypoint + SetCrazyArrow).")
         return
     end
@@ -505,35 +516,35 @@ local function pushTomTom(m, x, y, title, src)
     end
     if not (m and x and y) then return end
 
-    if bridge.lastUID and TomTom.RemoveWaypoint then
+    if bridge.lastUID and tomtom.RemoveWaypoint then
         if type(NS.WithTomTomClearSyncSuppressed) == "function" then
             NS.WithTomTomClearSyncSuppressed(function()
-                TomTom:RemoveWaypoint(bridge.lastUID)
+                tomtom:RemoveWaypoint(bridge.lastUID)
             end)
         else
-            TomTom:RemoveWaypoint(bridge.lastUID)
+            tomtom:RemoveWaypoint(bridge.lastUID)
         end
         bridge.lastUID = nil
     end
 
-    if TomTom.waypoints and TomTom.waypoints[m] then
+    if tomtom.waypoints and tomtom.waypoints[m] then
         local dupes = {}
-        for key, wp in pairs(TomTom.waypoints[m]) do
+        for key, wp in pairs(tomtom.waypoints[m]) do
             if wp[2] == x and wp[3] == y and not wp.fromZWP then
                 dupes[#dupes + 1] = wp
             end
         end
         for _, wp in ipairs(dupes) do
-            TomTom:RemoveWaypoint(wp)
+            tomtom:RemoveWaypoint(wp)
         end
     end
 
     local t = title or " "
-    local uid = TomTom:AddWaypoint(m, x, y, { title = t, fromZWP = true })
+    local uid = tomtom:AddWaypoint(m, x, y, { title = t, fromZWP = true })
     if not uid then return end
 
     bridge.lastUID = uid
-    TomTom:SetCrazyArrow(uid, 15, t)
+    tomtom:SetCrazyArrow(uid, 15, t)
     bridge.lastAppliedSource = src
     bridge.lastAppliedAt = GetTime and GetTime() or 0
 
@@ -790,16 +801,17 @@ end
 function NS.ApplyTomTomArrowDefaults()
     NS.EnsureGuideArrowVisibilityPolicy()
 
-    if TomTom and TomTom.db and TomTom.db.profile then
-        if TomTom.db.profile.arrow then
-            TomTom.db.profile.arrow.showtta = false
-            TomTom.db.profile.arrow.title_alpha = 0
+    local tomtom = GetTomTom()
+    if tomtom and tomtom.db and tomtom.db.profile then
+        if tomtom.db.profile.arrow then
+            tomtom.db.profile.arrow.showtta = false
+            tomtom.db.profile.arrow.title_alpha = 0
         end
 
-        if TomTom.db.profile.persistence then
+        if tomtom.db.profile.persistence then
             local db = NS.GetDB()
             if db.tomtomOverride ~= false then
-                TomTom.db.profile.persistence.cleardistance = 0
+                tomtom.db.profile.persistence.cleardistance = 0
             end
         end
     end
