@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.4
+- **Scene / cinematic handling**
+  - Added bridge handling for cinematic cutscenes and other UI-hidden states (including Vista Points) so waypoint state is preserved. Detection prioritizes event-driven cinematics, then falls back to full UI-hidden states, with clean resynchronization afterward.
+  - Manual destinations now restore correctly after cinematic or scene transitions.
+
+- **Guide / mirror synchronization**
+  - When Zygor has no extractable coordinates for a guide step, the mirrored TomTom arrow now clears instead of lingering on a stale waypoint.
+  - Improved post-cinematic recovery so bridge state and TomTom interaction behavior are restored reliably after the UI returns.
+
+- **Arrow theme fixes**
+  - Fixed an issue with Zygor Starlight/Stealth skins where steps could leave the arrow visually stuck instead of switching cleanly between navigation and arrival states.
+  - Arrow themes now track navigation and arrival states explicitly instead of inferring them from textures after reapplication.
+
+- **Diagnostics**
+  - Added `/zwp diag` to monitor live scene and arrow state changes for troubleshooting cinematic, Vista Point, and UI presentation issues.
+
+- **Documentation**
+  - Removed duplicated historical version notes and cleaned up the README.
+
 ## 2.3c
 - **TomTom / Zygor startup synchronization**
   - Deferred TomTom → Zygor routing until Zygor's pointer arrow frame is fully initialized, preventing startup LUA errors when other addons create TomTom waypoints early during login or `/reload`.

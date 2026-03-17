@@ -2,7 +2,7 @@
 
 > A bridge addon that lets **Zygor Guides** and **TomTom** work together --- using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-2.3c-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
+![Version](https://img.shields.io/badge/version-2.4-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -35,16 +35,6 @@ TomTom waypoint  → ZygorWaypoint → Zygor Travel Routing → TomTom Crazy Arr
 ### Why?
 
 The goal is to maintain a **single navigation arrow** while remaining compatible with the broader WoW addon ecosystem and TomTom integrations.
-
-Earlier versions of ZygorWaypoint (1.x) used **Zygor's arrow directly**. While this worked well for Zygor guides, many other addons expect **TomTom** to be present for waypoint navigation. Because of this, some addons would not recognize ZygorWaypoint as a valid navigation provider.
-
-Version **2.0** changes this approach by using **TomTom as the visible navigation arrow**, ensuring maximum compatibility with addons that rely on TomTom waypoints.
-
-ZygorWaypoint still leverages **Zygor's travel system** to calculate optimal routes, while TomTom handles the visual navigation arrow.
-
-For users who prefer the Zygor look, **Zygor's Starlight or Stealth arrow skins can optionally be applied to TomTom's arrow**, preserving the Zygor visual style while keeping TomTom compatibility.
-
-Version **2.0** is a full rewrite of the original ZygorWaypoint addon with a cleaner architecture and improved compatibility.
 
 ------------------------------------------------------------------------
 
@@ -217,6 +207,7 @@ Available commands:
 
 -   `/zwp status` --- Show addon status
 -   `/zwp debug` --- Toggle debug output
+-   `/zwp diag` --- Monitor live scene and arrow state changes for troubleshooting
 -   `/zwp options` --- Open addon options
 -   `/zwp skin default|starlight|stealth` --- Change arrow appearance
 -   `/zwp scale <0.60-2.00>` --- Adjust Zygor skin arrow scale
@@ -291,145 +282,26 @@ If an addon creates a TomTom waypoint, ZygorWaypoint can route it through Zygor'
 
 ------------------------------------------------------------------------
 
-# Notes and Limitations
-
-Version **2.0** intentionally removes several legacy systems from earlier ZygorWaypoint versions.
-
-Removed features include:
-
-- `/way` command replacement  
-  This is a built-in **TomTom** command and is no longer necessary for ZygorWaypoint to provide.
-
-- Blizzard supertracking capture  
-  This feature caused reliability issues and was removed. TomTom already provides better compatibility with other addons that interact with waypoints.
-
-- 3D diamond synchronization  
-  Other addons provide better support for this functionality, including integrations such as **Waypoint UI's TomTom support**.
-
-- Legacy waypoint interception systems  
-  Waypoint handling is now fully managed through **TomTom's Crazy Arrow** together with **Zygor's travel system**.
-
-These changes simplify the addon and allow ZygorWaypoint to focus entirely on its core purpose:  
-**Bridging TomTom navigation with Zygor's travel routing for the purpose of having a single navigation system/arrow**
-
-------------------------------------------------------------------------
-
 # Changelog
 
-## 2.3c
-- **TomTom / Zygor startup synchronization**
-  - Deferred TomTom → Zygor routing until Zygor's pointer arrow frame is fully initialized, preventing startup LUA errors when other addons create TomTom waypoints early during login or `/reload`.
-  - Added a startup adoption pass so existing TomTom waypoints can be picked up by Zygor once both addons finish loading, including cases where the guide viewer starts hidden.
+## 2.4
+- **Scene / cinematic handling**
+  - Added bridge handling for cinematic cutscenes and other UI-hidden states (including Vista Points) so waypoint state is preserved. Detection prioritizes event-driven cinematics, then falls back to full UI-hidden states, with clean resynchronization afterward.
+  - Manual destinations now restore correctly after cinematic or scene transitions.
 
-- **Waypoint clear synchronization**
-  - Improved timing when Zygor clears waypoints so the mirrored TomTom arrow updates on the next frame instead of waiting for the bridge heartbeat.
-  - Clearing the mirrored TomTom waypoint now also clears the linked Zygor manual destination, including the lingering Zygor navigation text and manual pin during TomTom reset/remove actions.
+- **Guide / mirror synchronization**
+  - When Zygor has no extractable coordinates for a guide step, the mirrored TomTom arrow now clears instead of lingering on a stale waypoint.
+  - Improved post-cinematic recovery so bridge state and TomTom interaction behavior are restored reliably after the UI returns.
 
-## 2.3b
-- **Guide viewer compact mode**
-  - Reworked the compact viewer implementation to stop replacing methods on the Zygor guide viewer frame.
-  - Switched to a hook-and-restore approach that preserves our current hover behavior while avoiding LUA taint (somehow) issues discovered in Blizzard unit and nameplate code.
+- **Arrow theme fixes**
+  - Fixed an issue with Zygor Starlight/Stealth skins where steps could leave the arrow visually stuck instead of switching cleanly between navigation and arrival states.
+  - Arrow themes now track navigation and arrival states explicitly instead of inferring them from textures after reapplication.
 
-## 2.3a
-- **Guide viewer compact mode**
-  - Fixed a compact-mode restore issue where parts of Zygor's normal viewer border/background could remain suppressed after turning the feature back off.
-  - Turning compact mode off now forces an immediate full guide viewer restore instead of requiring a `/reload` to get the normal guide viewer frame back.
+- **Diagnostics**
+  - Added `/zwp diag` to monitor live scene and arrow state changes for troubleshooting cinematic, Vista Point, and UI presentation issues.
 
 - **Documentation**
-  - Updated the README settings list to reflect the current options, including manual waypoint auto-clear and its configurable clear distance.
-  - Adjusted wording to match the current UI label for TomTom waypoint routing through Zygor.
-
-## 2.3
-- **Guide viewer compact mode**
-  - Added an option to show only the visible guide step rows, similar to the old "Mini Mode with Tooltip" Zygor previously offered.
-  - Hovering over the Zygor guide viewer temporarily restores the full guide viewer until mouse is no longer over the guide viewer.
-
-- **Manual waypoint arrival clearing**
-  - Added an optional auto-clear feature for manual waypoints with a configurable arrival distance (yards).
-  - When a manual destination auto-clears, the mirrored TomTom pin, Blizzard user waypoint, and supertracking state are also cleared.
-  - Zygor travel routing is not affected, intermediate travel steps remain intact and auto-clear only applies to the final destination waypoint.
-
-- **Options / UI**
-  - Rebuilt the addon options panel using Blizzard's newer Settings layout.
-  - Most options now apply without needing a UI reload. Settings that cannot update fully live will instead display a reload-recommended prompt.
-  - Added slash commands for the new manual waypoint auto-clear and compact viewer features: `/zwp manualclear`, `/zwp cleardistance`, and `/zwp compact`.
-
-- **Search fixes**
-  - Refined vendor fallback handling so the repair fallback only triggers when a vendor search truly fails.
-  - Chat feedback now reflects the fallback behavior more accurately.
-
-## 2.2
-- **Hidden guide / waypoint control**
-  - Added runtime guards around Zygor's guide waypoint rebuild path so guide-step navigation text remain suppressed while the guide viewer is hidden. This fixes cases where guide steps could still attempt to take control when the viewer was hidden.
-  - Manual destinations remain fully functional while the guide is hidden, using the Zygor navigation text and TomTom arrow as before.
-  - Improved hidden-guide cleanup during login and reload, resulting in more reliable bridge-state resets.
-
-- **Pin / waypoint cleanup**
-  - Clearing the mirrored bridge waypoint now also clears the Blizzard user waypoint and supertracking state.
-  - Duplicate TomTom pins at the active bridge coordinates are now removed before applying the mirrored waypoint, fixing cases where pins were not being removed properly when a waypoint was cleared.
-
-- **Performance / memory**
-  - Removed per-frame table allocations in the custom Zygor → TomTom skins by caching navigation texture coordinates in scalar fields.
-  - Bridge sync updates are no longer triggered from Zygor's hot `UpdateFrame()` redraw path and instead rely on the bridge heartbeat for visible-guide refreshes.
-  - Reduced repeated allocation churn during Zygor waypoint extraction and title cleanup.
-
-- **Search commands**
-  - Added `/zwp search` support for Zygor service lookups including vendor, auctioneer, banker, innkeeper, flightmaster, mailbox, repair, riding trainer, stable master, transmogrifier, and void storage.
-  - Added profession trainer and profession workshop searches, along with `/zwp search help`.
-  - Added retail-friendly aliases such as `ah`, `auction`, `bank`, `inn`, `mog`, `tmog`, `store`, `repairs`, and `stables`.
-  - Vendor searches now fall back to `Repair` if Zygor's vendor lookup fails to place a waypoint, including when the search originates from Zygor's menu. ZWP will tell you when this occurs.
-
-- **Documentation**
-  - Updated the README command list to include the new search commands.
-
-## 2.1b
-- **Arrow theme fixes**:
-  - Fixed an intermittent issue where Starlight or Stealth could briefly show the full arrow sprite sheet during waypoint updates or theme refreshes.
-
-## 2.1a
-- **Zygor Arrow themes**:
-  - Added Zygor Stealth TomTom skin alongside Starlight.
-  - `/zwp skin` can now switch between `default`, `starlight`, and `stealth`.
-  - The options panel can now switch between `starlight`, and `stealth`.
-  - Zygor skin scale and alignment spacing now apply to both custom TomTom skins.
-  - Specular fixes
-  - Hidden-arrow cleanup now avoids calling Zygor's arrow hide path before it exists.
-
-## 2.1
-
-- **Guide visibility handling**
-  - Clears the active guide step waypoint when the Zygor guide frame is hidden.
-  - TomTom Crazy Arrow and Zygor Travel System text remain active while the guide is hidden, but guide step goals are disabled.
-  - Manual waypoints and Zygor travel routing continue to function normally while the guide is hidden.
-  - Guide step waypoints refresh automatically when the guide becomes visible again or when a manual waypoint is completed or cleared.
-  - Forces Zygor's `hidearrowwithguide` policy off so arrow visibility remains under ZygorWaypoint control.
-
-- **Command / settings cleanup**
-  - Removed obsolete `/zwp on` and `/zwp off` commands.
-  - Legacy `enabled` values are automatically cleared from SavedVariables on load.
-
-- **Options / UI**
-  - Resolved Lua errors triggered when opening the options panel that caused `/zwp options` command to not open the settings panel.
-
-- **Documentation**
-  - Updated command and documentation text to match the current `/zwp` command set.
-
-## 2.0
-
-- Packaging:
-  - Dependencies are now hard-required: `TomTom`, `ZygorGuidesViewer`.
-- Command root is still `/zwp`.
-  - Subcommands: `status`, `debug`, `skin`, `scale`, `options`, `routing`, `align`, `override`.
-- Bridge features:
-  - Zygor waypoint extraction -> TomTom Crazy Arrow updates.
-  - TomTom waypoint routing -> Zygor travel/pathing -> TomTom Crazy Arrow.
-  - Zygor Starlight theme support for TomTom arrow.
-  - Starlight-only visual arrow scale control without overwriting TomTom profile scale.
-- UI/docs refresh:
-  - Added AddOns options panel.
-  - Rewrote README for v2.0 behavior and clean-break scope.
-
-## Legacy 1.x
+  - Removed duplicated historical version notes and cleaned up the README.
 
 See [CHANGELOG](CHANGELOG.md)
 

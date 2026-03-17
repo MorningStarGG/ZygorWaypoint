@@ -2,7 +2,7 @@
 ## Title: ZygorWaypoint
 ## Notes: Bridges Zygor waypoints to TomTom's Crazy Arrow and routes TomTom waypoints through Zygor Travel System.
 ## Author: MorningStarGG
-## Version: 2.3c
+## Version: 2.4
 ## IconTexture: Interface\AddOns\ZygorWaypoint\media\icon.png
 ## SavedVariables: ZygorWaypointDB
 ## RequiredDeps: TomTom, ZygorGuidesViewer

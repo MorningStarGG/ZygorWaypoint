@@ -147,7 +147,7 @@ local function showSearchHelp()
 end
 
 local function usage()
-    NS.Msg("Usage: /zwp status | debug | options")
+    NS.Msg("Usage: /zwp status | debug | diag | options")
     NS.Msg("       /zwp skin default|starlight|stealth")
     NS.Msg("       /zwp scale <" .. string.format("%.2f", C.SCALE_MIN) .. "-" .. string.format("%.2f", C.SCALE_MAX) .. ">")
     NS.Msg("       /zwp routing on|off|toggle")
@@ -522,6 +522,77 @@ local function handleSearch(arg)
     NS.Msg("Searching nearest:", target.label)
 end
 
+-- ── Vista / cinematic diagnostic monitor ──
+local diagState = {
+    active = false,
+    frame = nil,
+    elapsed = 0,
+    last = nil,
+}
+
+local function diagSnapshot()
+    local Z = NS.ZGV()
+    local P = Z and Z.Pointer
+    local af = P and P.ArrowFrame
+    local tom = _G.TomTomCrazyArrow
+    local b = state.bridge or {}
+
+    local ic = InCinematic and InCinematic() or false
+    local ics = IsInCinematicScene and IsInCinematicScene() or false
+    local uip = UIParent and UIParent:IsShown() or false
+    local zfv = Z and Z.Frame and Z.Frame:IsVisible() or false
+    local afv = af and af:IsShown() or false
+    local tmv = tom and tom:IsShown() or false
+    local ca = b.cinematicActive and true or false
+    local gvs = b.guideVisibilityState or "nil"
+
+    return string.format(
+        "IC:%s ICS:%s UIP:%s ZF:%s AF:%s TT:%s CA:%s GVS:%s",
+        tostring(ic), tostring(ics), tostring(uip),
+        tostring(zfv), tostring(afv), tostring(tmv),
+        tostring(ca), gvs
+    )
+end
+
+local function diagTick()
+    local snap = diagSnapshot()
+    if snap ~= diagState.last then
+        diagState.last = snap
+        NS.Msg("[DIAG] " .. snap)
+    end
+end
+
+local function handleDiag()
+    if diagState.active then
+        diagState.active = false
+        if diagState.frame then
+            diagState.frame:SetScript("OnUpdate", nil)
+        end
+        NS.Msg("[DIAG] Monitor stopped. Final state:")
+        NS.Msg("[DIAG] " .. diagSnapshot())
+        return
+    end
+
+    diagState.active = true
+    diagState.last = nil
+    diagState.elapsed = 0
+
+    if not diagState.frame then
+        diagState.frame = CreateFrame("Frame")
+    end
+
+    diagState.frame:SetScript("OnUpdate", function(_, dt)
+        diagState.elapsed = diagState.elapsed + dt
+        if diagState.elapsed < 0.3 then return end
+        diagState.elapsed = 0
+        diagTick()
+    end)
+
+    NS.Msg("[DIAG] Monitor started. Tracking state changes (poll 0.3s):")
+    NS.Msg("[DIAG] IC=InCinematic ICS=IsInCinematicScene UIP=UIParent ZF=ZygorFrame AF=Arrow TT=TomTom CA=cinematicActive GVS=guideVisibilityState")
+    diagTick()
+end
+
 local function handleCommand(msg)
     local input = trim(msg)
     local cmd, rest = input:match("^(%S+)%s*(.-)$")
@@ -539,6 +610,8 @@ local function handleCommand(msg)
     elseif cmd == "debug" then
         local enabled = NS.ToggleDebug()
         NS.Msg("Debug:", enabled and "ON" or "OFF")
+    elseif cmd == "diag" then
+        handleDiag()
     elseif cmd == "skin" then
         handleSkin(rest:lower())
     elseif cmd == "scale" then

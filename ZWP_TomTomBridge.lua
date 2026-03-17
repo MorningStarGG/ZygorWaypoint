@@ -17,6 +17,7 @@ state.bridge = state.bridge or {
     zygorArrowHooked = false,
     zygorGuideGuardsHooked = false,
     guideVisibilityState = nil,
+    cinematicActive = false,
     heartbeatFrame = nil,
     heartbeatElapsed = 0,
     manualAutoClearWaypoint = nil,
@@ -386,6 +387,16 @@ local function GetGuideVisibilityState()
     local Z = NS.ZGV()
     if not Z or not Z.Pointer or not Z.Frame then return end
 
+    if bridge.cinematicActive then
+        return "cinematic"
+    end
+
+    -- UIParent is hidden during cinematics, vista points, and similar
+    -- scenes.  Treat as cinematic to avoid nuking waypoint state.
+    if not UIParent:IsShown() then
+        return "cinematic"
+    end
+
     if Z.Frame:IsVisible() then
         return "visible"
     end
@@ -415,11 +426,47 @@ local function SyncGuideVisibilityState()
     if current == "hidden-idle" then
         ClearHiddenGuideWaypoints()
         ClearBridgeMirror()
+    elseif current == "cinematic" then
+        -- Blizzard hides UIParent during cinematics. Keep mirrored state
+        -- intact and resync once the cinematic ends.
     elseif current == "visible" and previous and previous ~= "visible" then
         RefreshVisibleGuideWaypoints()
+    elseif current == "hidden-manual" and previous == "cinematic" then
+        local Z = NS.ZGV()
+        local P = Z and Z.Pointer
+        local destination = P and P.DestinationWaypoint
+        if destination and destination.type == "manual" then
+            ShowManualDestinationWhileHidden(P, destination)
+        end
+    end
+
+    -- Re-apply TomTom mouse protection after cinematics, which can
+    -- reset EnableMouse during the UI show/hide cycle.
+    if previous == "cinematic" and bridge.unifiedDragHooked then
+        local ta = _G.TomTomCrazyArrow
+        if ta then
+            ta:EnableMouse(false)
+        end
     end
 
     return current
+end
+
+function NS.SetCinematicActive(active)
+    local nextState = active and true or false
+    if bridge.cinematicActive == nextState then
+        return
+    end
+
+    bridge.cinematicActive = nextState
+    if nextState then
+        bridge.guideVisibilityState = "cinematic"
+        return
+    end
+
+    -- Let SyncGuideVisibilityState handle the transition once UIParent
+    -- is visible again. Schedule a tick to pick it up promptly.
+    NS.After(0, NS.TickUpdate)
 end
 
 function NS.HandleTomTomMirrorCleared(uid)
@@ -613,6 +660,10 @@ function NS.TickUpdate()
         return
     end
 
+    if visibilityState == "cinematic" then
+        return
+    end
+
     if visibilityState == "hidden-idle" then
         if bridge.lastUID or bridge.lastSig or bridge.lastAppliedSource or bridge.pendingFallbackSwitch then
             ClearBridgeMirror()
@@ -627,7 +678,12 @@ function NS.TickUpdate()
     end
 
     local m, x, y, title, src = NS.ExtractWaypointFromZygor(pointerOnly)
-    if not (m and x and y) then return end
+    if not (m and x and y) then
+        if bridge.lastAppliedSource and bridge.lastAppliedSource ~= "pointer.DestinationWaypoint" then
+            ClearBridgeMirror()
+        end
+        return
+    end
     if ShouldSuppressDestinationFallback(src, title, m, pointerOnly) then return end
 
     local sig = signature(m, x, y)

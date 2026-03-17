@@ -8,6 +8,10 @@ state.init.frame = f
 
 f:RegisterEvent("ADDON_LOADED")
 f:RegisterEvent("PLAYER_LOGIN")
+f:RegisterEvent("CINEMATIC_START")
+f:RegisterEvent("CINEMATIC_STOP")
+f:RegisterEvent("PLAY_MOVIE")
+f:RegisterEvent("STOP_MOVIE")
 
 f:SetScript("OnEvent", function(_, ev, arg1)
     if ev == "ADDON_LOADED" then
@@ -38,5 +42,13 @@ f:SetScript("OnEvent", function(_, ev, arg1)
         NS.After(0.6, NS.HookTomTomRouting)
         NS.After(0.8, NS.ResumeTomTomRoutingStartupSync)
         NS.After(1.0, NS.TickUpdate)
+    elseif ev == "CINEMATIC_START" or ev == "PLAY_MOVIE" then
+        if type(NS.SetCinematicActive) == "function" then
+            NS.SetCinematicActive(true)
+        end
+    elseif ev == "CINEMATIC_STOP" or ev == "STOP_MOVIE" then
+        if type(NS.SetCinematicActive) == "function" then
+            NS.SetCinematicActive(false)
+        end
     end
 end)

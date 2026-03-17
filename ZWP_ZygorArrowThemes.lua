@@ -258,6 +258,7 @@ local function BuildTomTomZygorTheme(themeDef)
         arrival_throttle = 0.016,
         navigation_throttle = 0.016,
         elapsedNav = 0,
+        isArrivalMode = false,
     }
 
     function theme:ApplyTheme(button)
@@ -300,6 +301,8 @@ local function BuildTomTomZygorTheme(themeDef)
         local arrow = self.arrowTexture
         if not arrow then return end
 
+        self.isArrivalMode = true
+
         arrow:ClearAllPoints()
         arrow:SetPoint("CENTER", button, "CENTER", 0, -((self.themeDef.arrivalDrop or 0) * scale))
         arrow:SetSize((self.themeDef.arrivalWidth or 40) * scale, (self.themeDef.arrivalHeight or 40) * scale)
@@ -326,6 +329,8 @@ local function BuildTomTomZygorTheme(themeDef)
         if self.arrivalAnim then
             self.arrivalAnim:Stop()
         end
+
+        self.isArrivalMode = false
 
         local anchor = button or (self.arrowTexture and self.arrowTexture:GetParent())
         if not anchor then return end
@@ -425,7 +430,7 @@ function NS.ApplyTomTomArrowSkin()
         local activeKey = (handler.GetActiveTheme and handler:GetActiveTheme()) or handler.activeKey
         if activeKey == themeDef.themeKey and active then
             active:ApplyTheme(wayframe)
-            if active.arrowTexture and active.arrowTexture:GetTexture() == active.specialsTexture then
+            if active.isArrivalMode then
                 active:SwitchToArrivalArrow(wayframe)
             else
                 active:SwitchToNavigationArrow(wayframe)
