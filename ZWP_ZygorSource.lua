@@ -66,13 +66,24 @@ local function getCurrentWaypointGoal(step)
     return step.goals[step.current_waypoint_goal_num]
 end
 
+local function getWaypointArrowTitle(waypoint)
+    return chooseFirstTitle(
+        callTitleMethod(waypoint, "GetArrowTitle"),
+        waypoint and waypoint.arrowtitle
+    )
+end
+
+local function getWaypointDisplayTitle(waypoint)
+    return chooseFirstTitle(
+        callTitleMethod(waypoint, "GetTitle"),
+        waypoint and waypoint.title
+    )
+end
 
 local function chooseWaypointTitle(waypoint)
     return chooseFirstTitle(
-        callTitleMethod(waypoint, "GetArrowTitle"),
-        callTitleMethod(waypoint, "GetTitle"),
-        waypoint and waypoint.arrowtitle,
-        waypoint and waypoint.title
+        getWaypointArrowTitle(waypoint),
+        getWaypointDisplayTitle(waypoint)
     )
 end
 
@@ -81,11 +92,12 @@ local function chooseStepishTitle(Z, waypoint)
     local goal = getCurrentWaypointGoal(step)
 
     return chooseFirstTitle(
+        getWaypointArrowTitle(waypoint),
         getGoalTitle(goal),
+        getWaypointDisplayTitle(waypoint),
         step and callTitleMethod(step, "GetWayTitle"),
         step and callTitleMethod(step, "GetTitle"),
-        step and step.title,
-        chooseWaypointTitle(waypoint)
+        step and step.title
     )
 end
 
@@ -122,6 +134,20 @@ local function isManualWaypoint(w)
     return type(w) == "table" and w.type == "manual"
 end
 
+local function isCurrentStepGoalWaypoint(step, w)
+    local goal = type(w) == "table" and w.goal
+    if type(goal) ~= "table" or goal.parentStep ~= step then
+        return false
+    end
+
+    local currentGoalNum = step and step.current_waypoint_goal_num
+    return type(currentGoalNum) ~= "number" or goal.num == currentGoalNum
+end
+
+local function shouldUseWaypointListFallback(step, w)
+    return isManualWaypoint(w) or isCurrentStepGoalWaypoint(step, w)
+end
+
 function NS.IsCurrentGuideStepWaypointSuppressed()
     local Z = NS.ZGV()
     local step = Z and Z.CurrentStep
@@ -154,6 +180,7 @@ function NS.ExtractWaypointFromZygor(pointerOnly)
     local Z = NS.ZGV()
     if not Z then return end
     local P = Z.Pointer
+    local step = Z.CurrentStep
     local suppressGuideWaypoint = not pointerOnly and NS.IsCurrentGuideStepWaypointSuppressed()
 
     if P and P.ArrowFrame and P.ArrowFrame.waypoint then
@@ -184,7 +211,7 @@ function NS.ExtractWaypointFromZygor(pointerOnly)
         if type(P.waypoints) == "table" and P.waypoints[1] then
             local w = P.waypoints[1]
             local m, x, y = readWaypointCoords(w)
-            if m and x and y and (not suppressGuideWaypoint or isManualWaypoint(w)) then
+            if m and x and y and shouldUseWaypointListFallback(step, w) and (not suppressGuideWaypoint or isManualWaypoint(w)) then
                 return m, x, y, chooseTitle(pointerOnly, Z, w), "pointer.waypoints[1]"
             end
         end
@@ -193,7 +220,6 @@ function NS.ExtractWaypointFromZygor(pointerOnly)
     if pointerOnly then return end
     if suppressGuideWaypoint then return end
 
-    local step = Z.CurrentStep
     if step and step.current_waypoint_goal_num and step.goals then
         local g = step.goals[step.current_waypoint_goal_num]
         if g and not isSuppressedGoal(g) then

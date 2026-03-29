@@ -4,6 +4,7 @@ local state = NS.State
 
 state.bridge = state.bridge or {
     lastSig = nil,
+    lastTitle = nil,
     lastUID = nil,
     lastAppliedSource = nil,
     lastAppliedAt = 0,
@@ -115,6 +116,7 @@ end
 
 local function ResetAppliedWaypointState()
     bridge.lastSig = nil
+    bridge.lastTitle = nil
     bridge.lastAppliedSource = nil
     bridge.lastAppliedAt = 0
     bridge.lastArrowSeenAt = 0
@@ -546,6 +548,7 @@ local function pushTomTom(m, x, y, title, src)
     if not uid then return end
 
     bridge.lastUID = uid
+    bridge.lastTitle = t
     tomtom:SetCrazyArrow(uid, 15, t)
     bridge.lastAppliedSource = src
     bridge.lastAppliedAt = GetTime and GetTime() or 0
@@ -716,10 +719,13 @@ function NS.TickUpdate()
     end
 
     local sig = signature(m, x, y)
-    if sig ~= bridge.lastSig then
-        if ShouldDebounceFallbackSwitch(sig, src) then return end
+    local effectiveTitle = title or " "
+    local sigChanged = sig ~= bridge.lastSig
+    local titleChanged = effectiveTitle ~= (bridge.lastTitle or " ")
+    if sigChanged or titleChanged then
+        if sigChanged and ShouldDebounceFallbackSwitch(sig, src) then return end
         bridge.lastSig = sig
-        pushTomTom(m, x, y, title, src)
+        pushTomTom(m, x, y, effectiveTitle, src)
     end
 end
 

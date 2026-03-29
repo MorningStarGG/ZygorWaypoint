@@ -2,7 +2,7 @@
 
 > A bridge addon that lets **Zygor Guides** and **TomTom** work together --- using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-2.5-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
+![Version](https://img.shields.io/badge/version-2.5a-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -296,6 +296,13 @@ If an addon creates a TomTom waypoint, ZygorWaypoint can route it through Zygor'
 ------------------------------------------------------------------------
 
 # Changelog
+
+## 2.5a
+
+- **Mirrored title / fallback fixes**
+  - Adjusted mirrored title priority so labels used by TomTom & Waypoint UI prefer the current Zygor navigation text before falling back to broader goal or step titles when building TomTom and Waypoint UI labels.
+  - Mirrored waypoints will now refresh when the resolved title changes, in addition to when the destination coordinates change.
+  - Adjusted the `pointer.waypoints[1]` fallback so stale or unrelated entries are ignored unless they belong to the current step/goal or are valid manual waypoints.
 
 ## 2.5
 

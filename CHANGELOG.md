@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.5a
+
+- **Mirrored title / fallback fixes**
+  - Adjusted mirrored title priority so labels used by TomTom & Waypoint UI prefer the current Zygor navigation text before falling back to broader goal or step titles when building TomTom and Waypoint UI labels.
+  - Mirrored waypoints will now refresh when the resolved title changes, in addition to when the destination coordinates change.
+  - Adjusted the `pointer.waypoints[1]` fallback so stale or unrelated entries are ignored unless they belong to the current step/goal or are valid manual waypoints.
+
 ## 2.5
 
 - **Waypoint UI compatibility**
