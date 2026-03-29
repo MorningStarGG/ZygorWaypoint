@@ -1,31 +1,92 @@
 local NS = _G.ZygorWaypointNS
 local POINTER_WAYPOINT_KEYS = { "DestinationWaypoint", "waypoint", "current_waypoint" }
 
-local function sanitizeTitle(title)
-    title = title or " "
+
+local function normalizeTitle(title)
+    if title == nil then
+        return
+    end
+
+    title = tostring(title)
+    title = title:gsub("[\r\n]+", " ")
     title = title:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
     title = title:gsub("%s*%d+[%.,]%s*%d+%s*,?%s*", " ")
     title = title:gsub("%s*%d+[%.,]%s*%d+%s*$", " ")
     title = title:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
     if title == "" then
-        title = " "
+        return
     end
     return title
 end
 
+local function chooseFirstTitle(...)
+    for i = 1, select("#", ...) do
+        local title = normalizeTitle(select(i, ...))
+        if title then
+            return title
+        end
+    end
+
+    return " "
+end
+
+local function callTitleMethod(target, methodName, ...)
+    if type(target) ~= "table" then
+        return
+    end
+
+    local method = target[methodName]
+    if type(method) ~= "function" then
+        return
+    end
+
+    local ok, title = pcall(method, target, ...)
+    if ok then
+        return title
+    end
+end
+
+local function getGoalTitle(goal)
+    if type(goal) ~= "table" then
+        return
+    end
+
+    return callTitleMethod(goal, "GetText", true, false, false)
+        or goal.title
+        or goal.header
+        or goal.tooltip
+        or (goal.quest and goal.quest.title)
+end
+
+local function getCurrentWaypointGoal(step)
+    if not step or not step.current_waypoint_goal_num or type(step.goals) ~= "table" then
+        return
+    end
+
+    return step.goals[step.current_waypoint_goal_num]
+end
+
+
 local function chooseWaypointTitle(waypoint)
-    return sanitizeTitle(waypoint and (waypoint.arrowtitle or waypoint.title) or " ")
+    return chooseFirstTitle(
+        callTitleMethod(waypoint, "GetArrowTitle"),
+        callTitleMethod(waypoint, "GetTitle"),
+        waypoint and waypoint.arrowtitle,
+        waypoint and waypoint.title
+    )
 end
 
 local function chooseStepishTitle(Z, waypoint)
     local step = Z and Z.CurrentStep
-    local gtitle
-    if step and step.current_waypoint_goal_num and step.goals then
-        local g = step.goals[step.current_waypoint_goal_num]
-        gtitle = g and g.title
-    end
+    local goal = getCurrentWaypointGoal(step)
 
-    return sanitizeTitle(gtitle or (step and step.title) or (waypoint and (waypoint.arrowtitle or waypoint.title)) or " ")
+    return chooseFirstTitle(
+        getGoalTitle(goal),
+        step and callTitleMethod(step, "GetWayTitle"),
+        step and callTitleMethod(step, "GetTitle"),
+        step and step.title,
+        chooseWaypointTitle(waypoint)
+    )
 end
 
 local function chooseTitle(pointerOnly, Z, waypoint)
@@ -53,15 +114,52 @@ local function parseCoordPairFromText(s)
     end
 end
 
+local function isSuppressedGoal(g)
+    return type(g) == "table" and g.force_noway
+end
+
+local function isManualWaypoint(w)
+    return type(w) == "table" and w.type == "manual"
+end
+
+function NS.IsCurrentGuideStepWaypointSuppressed()
+    local Z = NS.ZGV()
+    local step = Z and Z.CurrentStep
+    if not step or type(step.goals) ~= "table" then
+        return false
+    end
+
+    local hasCoordinateGoals = false
+    local hasAllowedCoordinateGoals = false
+
+    for _, g in ipairs(step.goals) do
+        local visible = true
+        if g and type(g.IsVisible) == "function" then
+            visible = g:IsVisible()
+        end
+
+        if visible and g and g.x and g.y then
+            hasCoordinateGoals = true
+            if not isSuppressedGoal(g) then
+                hasAllowedCoordinateGoals = true
+                break
+            end
+        end
+    end
+
+    return hasCoordinateGoals and not hasAllowedCoordinateGoals
+end
+
 function NS.ExtractWaypointFromZygor(pointerOnly)
     local Z = NS.ZGV()
     if not Z then return end
     local P = Z.Pointer
+    local suppressGuideWaypoint = not pointerOnly and NS.IsCurrentGuideStepWaypointSuppressed()
 
     if P and P.ArrowFrame and P.ArrowFrame.waypoint then
         local w = P.ArrowFrame.waypoint
         local m, x, y = readWaypointCoords(w)
-        if m and x and y then
+        if m and x and y and (not suppressGuideWaypoint or isManualWaypoint(w)) then
             return m, x, y, chooseTitle(pointerOnly, Z, w), "pointer.ArrowFrame.waypoint"
         end
     end
@@ -69,7 +167,7 @@ function NS.ExtractWaypointFromZygor(pointerOnly)
     if P and P.arrow and P.arrow.waypoint then
         local w = P.arrow.waypoint
         local m, x, y = readWaypointCoords(w)
-        if m and x and y then
+        if m and x and y and (not suppressGuideWaypoint or isManualWaypoint(w)) then
             return m, x, y, chooseTitle(pointerOnly, Z, w), "pointer.arrow.waypoint"
         end
     end
@@ -78,7 +176,7 @@ function NS.ExtractWaypointFromZygor(pointerOnly)
         for _, key in ipairs(POINTER_WAYPOINT_KEYS) do
             local w = P[key]
             local m, x, y = readWaypointCoords(w)
-            if m and x and y then
+            if m and x and y and (not suppressGuideWaypoint or isManualWaypoint(w)) then
                 return m, x, y, chooseTitle(pointerOnly, Z, w), "pointer." .. key
             end
         end
@@ -86,18 +184,19 @@ function NS.ExtractWaypointFromZygor(pointerOnly)
         if type(P.waypoints) == "table" and P.waypoints[1] then
             local w = P.waypoints[1]
             local m, x, y = readWaypointCoords(w)
-            if m and x and y then
+            if m and x and y and (not suppressGuideWaypoint or isManualWaypoint(w)) then
                 return m, x, y, chooseTitle(pointerOnly, Z, w), "pointer.waypoints[1]"
             end
         end
     end
 
     if pointerOnly then return end
+    if suppressGuideWaypoint then return end
 
     local step = Z.CurrentStep
     if step and step.current_waypoint_goal_num and step.goals then
         local g = step.goals[step.current_waypoint_goal_num]
-        if g then
+        if g and not isSuppressedGoal(g) then
             local m = g.map or g.mapid or g.mapID
             local x = g.x
             local y = g.y
@@ -109,9 +208,9 @@ function NS.ExtractWaypointFromZygor(pointerOnly)
 
     if step and type(step.goals) == "table" then
         for i, g in ipairs(step.goals) do
-            local m = g and (g.map or g.mapid or g.mapID)
-            local x = g and g.x
-            local y = g and g.y
+            local m = g and not isSuppressedGoal(g) and (g.map or g.mapid or g.mapID)
+            local x = g and not isSuppressedGoal(g) and g.x
+            local y = g and not isSuppressedGoal(g) and g.y
             if m and x and y then
                 return m, x, y, chooseStepishTitle(Z, nil), "step.goal#" .. i
             end
@@ -121,7 +220,7 @@ function NS.ExtractWaypointFromZygor(pointerOnly)
     local pm = C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
     if step and pm and step.goals then
         for _, g in ipairs(step.goals) do
-            local x, y = parseCoordPairFromText(g and (g.tooltip or g.title or g.header))
+            local x, y = parseCoordPairFromText((not isSuppressedGoal(g)) and g and (g.tooltip or g.title or g.header))
             if x and y then
                 return pm, x, y, chooseStepishTitle(Z, nil), "text+playerMap"
             end

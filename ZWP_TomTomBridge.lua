@@ -108,7 +108,7 @@ function NS.EnsureGuideArrowVisibilityPolicy()
     Z.db.profile.hidearrowwithguide = false
 
     local P = Z.Pointer
-    if P and type(P.UpdateArrowVisibility) == "function" then
+    if P and type(P.UpdateArrowVisibility) == "function" and not InCombatLockdown() then
         P:UpdateArrowVisibility()
     end
 end
@@ -245,7 +245,7 @@ local function ClearActiveManualDestination(visibilityState)
 
     if visibilityState == "visible" and type(Z.ShowWaypoints) == "function" then
         Z:ShowWaypoints()
-        if type(P.UpdateArrowVisibility) == "function" then
+        if type(P.UpdateArrowVisibility) == "function" and not InCombatLockdown() then
             P:UpdateArrowVisibility()
         end
     end
@@ -540,7 +540,9 @@ local function pushTomTom(m, x, y, title, src)
     end
 
     local t = title or " "
-    local uid = tomtom:AddWaypoint(m, x, y, { title = t, fromZWP = true })
+    local addX = type(NS.StabilizeCoordForWaypointUI) == "function" and NS.StabilizeCoordForWaypointUI(x) or x
+    local addY = type(NS.StabilizeCoordForWaypointUI) == "function" and NS.StabilizeCoordForWaypointUI(y) or y
+    local uid = tomtom:AddWaypoint(m, addX, addY, { title = t, fromZWP = true })
     if not uid then return end
 
     bridge.lastUID = uid
@@ -666,6 +668,10 @@ local function ShouldDebounceFallbackSwitch(sig, src)
 end
 
 function NS.TickUpdate()
+    if not (state.init and state.init.playerLoggedIn) then
+        return
+    end
+
     local visibilityState = SyncGuideVisibilityState()
     if MaybeAutoClearManualDestination(visibilityState) then
         return
@@ -690,12 +696,24 @@ function NS.TickUpdate()
 
     local m, x, y, title, src = NS.ExtractWaypointFromZygor(pointerOnly)
     if not (m and x and y) then
+        if visibilityState == "visible"
+            and type(NS.IsCurrentGuideStepWaypointSuppressed) == "function"
+            and NS.IsCurrentGuideStepWaypointSuppressed()
+        then
+            ClearBridgeMirror()
+            return
+        end
+
         if bridge.lastAppliedSource and bridge.lastAppliedSource ~= "pointer.DestinationWaypoint" then
             ClearBridgeMirror()
         end
         return
     end
     if ShouldSuppressDestinationFallback(src, title, m, pointerOnly) then return end
+
+    if type(NS.MaybeRepairWaypointUISession) == "function" then
+        NS.MaybeRepairWaypointUISession(bridge.lastUID, m, x, y, title)
+    end
 
     local sig = signature(m, x, y)
     if sig ~= bridge.lastSig then

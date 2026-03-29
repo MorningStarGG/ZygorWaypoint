@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.5
+
+- **Waypoint UI compatibility**
+  - Added a dedicated compatibility layer to keep TomTom-mirrored Zygor destinations labeled correctly in Waypoint UI.
+  - Stabilized mirrored waypoint coordinates for Waypoint UI’s one-decimal tracking, fixing generic `Map Pin` labels caused by rounding-boundary coordinates.
+  - Added handling for Blizzard’s destination-reached supertracking clear so Waypoint UI no longer drops early ensuring the mirrored waypoint remains visible under its own user configured hide-distance settings.
+  - Added a fallback session restore path so temporary Waypoint UI clears (from TomTom arrow hides or scene transitions) correctly rebuild the marker and title when the mirrored waypoint is still active.
+
+- **Guide waypoint extraction / suppression**
+  - Reworked title extraction so mirrored TomTom and Waypoint UI destinations use improved non-empty Zygor text fallbacks (arrow title, waypoint title, current goal text, and step title).
+  - Guide steps flagged with `|noway` / `force_noway` are now treated as authoritative waypoint suppression, preventing fallback to stale pointer data or unrelated step coordinates.
+  - Visible guide steps with suppressed or missing coordinates now clear the mirrored TomTom arrow instead of lingering on stale destinations.
+
+- **Startup / combat safety**
+  - Deferred Zygor-specific bridge activity until `PLAYER_LOGIN`, and blocked bridge ticks before login to avoid interacting with Zygor during its startup coroutine window.
+  - Guarded forced Zygor arrow visibility refreshes during combat to prevent protected `Button:Show()` / `UpdateArrowVisibility()` taint errors during manual waypoint handoff.
+
+- **Diagnostics**
+  - Expanded `/zwp debug` with user waypoint and supertracking trace hooks (`ClearAllSuperTracked`, `SetUserWaypoint`, `ClearUserWaypoint`, `SUPER_TRACKING_CHANGED`, `USER_WAYPOINT_UPDATED`) to make Blizzard, Waypoint UI, and TomTom interaction issues easier to diagnose.
+
 ## 2.4a
 - **Globals & Linting cleanup**
   - Cleaned up LUA warnings across the bridge, routing, commands, UI, and custom arrow theme files by replacing direct global lookups with safer `_G[...]` accessors and small local helpers.

@@ -2,7 +2,7 @@
 
 > A bridge addon that lets **Zygor Guides** and **TomTom** work together --- using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-2.4a-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
+![Version](https://img.shields.io/badge/version-2.5-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -197,6 +197,19 @@ Once the mouse leaves the guide viewer, the interface returns to compact mode.
 
 ------------------------------------------------------------------------
 
+## Waypoint UI Compatibility
+
+ZygorWaypoint includes built-in compatibility for **Waypoint UI**:
+
+- Mirrored Zygor destinations are labeled correctly instead of appearing as generic `Map Pin` markers.
+- Waypoint UI markers use improved non-empty Zygor text fallbacks (arrow title, waypoint title, current goal text, or step title).
+- Waypoint coordinates are stabilized to prevent incorrectly named waypoints caused by Waypoint UI rounding differences.
+- Temporary clears caused by UI transitions (such as cinematics or TomTom arrow resets) are automatically restored if the destination is still active.
+
+This ensures consistent behavior between **TomTom**, **Zygor**, and **Waypoint UI**.
+
+------------------------------------------------------------------------
+
 # Slash Commands
 
 Command root:
@@ -284,30 +297,25 @@ If an addon creates a TomTom waypoint, ZygorWaypoint can route it through Zygor'
 
 # Changelog
 
-## 2.4a
-- **Globals & Linting cleanup**
-  - Cleaned up LUA warnings across the bridge, routing, commands, UI, and custom arrow theme files by replacing direct global lookups with safer `_G[...]` accessors and small local helpers.
-  - Added a targeted diagnostic suppression for the valid `HereBeDragons:GetPlayerZonePosition(true)` method call, which some editors incorrectly flag because of LUA method-call syntax.
-  - Adjusted a few local variable shapes in the custom arrow theme bridge so editor type inference no longer reports false-positive cast warnings.
+## 2.5
 
-## 2.4
-- **Scene / cinematic handling**
-  - Added bridge handling for cinematic cutscenes and other UI-hidden states (including Vista Points) so waypoint state is preserved. Detection prioritizes event-driven cinematics, then falls back to full UI-hidden states, with clean resynchronization afterward.
-  - Manual destinations now restore correctly after cinematic or scene transitions.
+- **Waypoint UI compatibility**
+  - Added a dedicated compatibility layer to keep TomTom-mirrored Zygor destinations labeled correctly in Waypoint UI.
+  - Stabilized mirrored waypoint coordinates for Waypoint UI’s one-decimal tracking, fixing generic `Map Pin` labels caused by rounding-boundary coordinates.
+  - Added handling for Blizzard’s destination-reached supertracking clear so Waypoint UI no longer drops early ensuring the mirrored waypoint remains visible under its own user configured hide-distance settings.
+  - Added a fallback session restore path so temporary Waypoint UI clears (from TomTom arrow hides or scene transitions) correctly rebuild the marker and title when the mirrored waypoint is still active.
 
-- **Guide / mirror synchronization**
-  - When Zygor has no extractable coordinates for a guide step, the mirrored TomTom arrow now clears instead of lingering on a stale waypoint.
-  - Improved post-cinematic recovery so bridge state and TomTom interaction behavior are restored reliably after the UI returns.
+- **Guide waypoint extraction / suppression**
+  - Reworked title extraction so mirrored TomTom and Waypoint UI destinations use improved non-empty Zygor text fallbacks (arrow title, waypoint title, current goal text, and step title).
+  - Guide steps flagged with `|noway` / `force_noway` are now treated as authoritative waypoint suppression, preventing fallback to stale pointer data or unrelated step coordinates.
+  - Visible guide steps with suppressed or missing coordinates now clear the mirrored TomTom arrow instead of lingering on stale destinations.
 
-- **Arrow theme fixes**
-  - Fixed an issue with Zygor Starlight/Stealth skins where steps could leave the arrow visually stuck instead of switching cleanly between navigation and arrival states.
-  - Arrow themes now track navigation and arrival states explicitly instead of inferring them from textures after reapplication.
+- **Startup / combat safety**
+  - Deferred Zygor-specific bridge activity until `PLAYER_LOGIN`, and blocked bridge ticks before login to avoid interacting with Zygor during its startup coroutine window.
+  - Guarded forced Zygor arrow visibility refreshes during combat to prevent protected `Button:Show()` / `UpdateArrowVisibility()` taint errors during manual waypoint handoff.
 
 - **Diagnostics**
-  - Added `/zwp diag` to monitor live scene and arrow state changes for troubleshooting cinematic, Vista Point, and UI presentation issues.
-
-- **Documentation**
-  - Removed duplicated historical version notes and cleaned up the README.
+  - Expanded `/zwp debug` with user waypoint and supertracking trace hooks (`ClearAllSuperTracked`, `SetUserWaypoint`, `ClearUserWaypoint`, `SUPER_TRACKING_CHANGED`, `USER_WAYPOINT_UPDATED`) to make Blizzard, Waypoint UI, and TomTom interaction issues easier to diagnose.
 
 See [CHANGELOG](CHANGELOG.md)
 

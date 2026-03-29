@@ -3,6 +3,7 @@ local NS = _G.ZygorWaypointNS
 NS.Constants = NS.Constants or {}
 NS.State = NS.State or {}
 NS.Runtime = NS.Runtime or {}
+NS.State.debugTrace = NS.State.debugTrace or {}
 
 local C = NS.Constants
 C.SKIN_DEFAULT = "default"
@@ -51,7 +52,7 @@ function NS.Log(...)
 end
 
 function NS.ZGV()
-    return _G.ZygorGuidesViewer or _G.ZGV
+    return _G["ZygorGuidesViewer"] or _G["ZGV"]
 end
 
 function NS.After(delay, fn)
@@ -69,4 +70,77 @@ end
 function NS.ToggleDebug()
     NS.Runtime.debug = not NS.Runtime.debug
     return NS.Runtime.debug
+end
+
+local function GetDebugTraceStack()
+    if type(debugstack) ~= "function" then
+        return nil
+    end
+
+    local ok, stack = pcall(debugstack, 4, 3, 0)
+    if not ok or type(stack) ~= "string" or stack == "" then
+        return nil
+    end
+
+    stack = stack:gsub("[\r\n]+", " | ")
+    return stack
+end
+
+function NS.LogSuperTrackTrace(label, ...)
+    if not NS.Runtime.debug then
+        return
+    end
+
+    local stack = GetDebugTraceStack()
+    if stack and stack ~= "" then
+        NS.Log(label, ..., stack)
+    else
+        NS.Log(label, ...)
+    end
+end
+
+function NS.InstallSuperTrackDebugHooks()
+    local trace = NS.State.debugTrace
+    if trace.installed then
+        return
+    end
+    trace.installed = true
+
+    if hooksecurefunc and C_SuperTrack then
+        if type(C_SuperTrack.SetSuperTrackedUserWaypoint) == "function" then
+            hooksecurefunc(C_SuperTrack, "SetSuperTrackedUserWaypoint", function(enabled)
+                NS.LogSuperTrackTrace("SetSuperTrackedUserWaypoint", tostring(enabled))
+            end)
+        end
+
+        if type(C_SuperTrack.SetSuperTrackedQuestID) == "function" then
+            hooksecurefunc(C_SuperTrack, "SetSuperTrackedQuestID", function(questID)
+                NS.LogSuperTrackTrace("SetSuperTrackedQuestID", tostring(questID))
+            end)
+        end
+
+        if type(C_SuperTrack.ClearAllSuperTracked) == "function" then
+            hooksecurefunc(C_SuperTrack, "ClearAllSuperTracked", function()
+                if type(NS.ConsumeWaypointUIClearTraceSkip) == "function" and NS.ConsumeWaypointUIClearTraceSkip() then
+                    return
+                end
+                NS.LogSuperTrackTrace("ClearAllSuperTracked")
+            end)
+        end
+    end
+
+    if hooksecurefunc and C_Map then
+        if type(C_Map.SetUserWaypoint) == "function" then
+            hooksecurefunc(C_Map, "SetUserWaypoint", function(uiMapPoint)
+                local mapID = uiMapPoint and uiMapPoint.uiMapID or nil
+                NS.LogSuperTrackTrace("SetUserWaypoint", tostring(mapID))
+            end)
+        end
+
+        if type(C_Map.ClearUserWaypoint) == "function" then
+            hooksecurefunc(C_Map, "ClearUserWaypoint", function()
+                NS.LogSuperTrackTrace("ClearUserWaypoint")
+            end)
+        end
+    end
 end

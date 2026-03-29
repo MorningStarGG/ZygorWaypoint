@@ -14,7 +14,7 @@ local ROUTE_RETRY_DELAY_SECONDS = 0.25
 local ROUTE_RETRY_MAX_COUNT = 40
 
 local function GetReadyPointer()
-    local Z = NS.ZGV and NS.ZGV() or _G.ZygorGuidesViewer
+    local Z = NS.ZGV and NS.ZGV() or _G["ZygorGuidesViewer"]
     local Pointer = Z and Z.Pointer
     if not Pointer or type(Pointer.SetWaypoint) ~= "function" or not Pointer.ArrowFrame then
         return
