@@ -11,6 +11,7 @@ state.bridge = state.bridge or {
     lastArrowSeenAt = 0,
     lastArrowSeenMap = nil,
     pendingFallbackSwitch = nil,
+    destNilSince = nil,
     lastSuppressLogAt = 0,
     lastSuppressLogSig = nil,
     unifiedDragHooked = false,
@@ -33,13 +34,8 @@ local function IsArrowWaypointSource(src)
     return src == "pointer.ArrowFrame.waypoint" or src == "pointer.arrow.waypoint"
 end
 
-local function GetTomTom()
-    return _G["TomTom"]
-end
-
-local function GetTomTomArrow()
-    return _G["TomTomCrazyArrow"]
-end
+local GetTomTom = NS.GetTomTom
+local GetTomTomArrow = NS.GetTomTomArrow
 
 local function GetCustomSkinAutoYOffset()
     local skin = type(NS.GetSkinChoice) == "function" and NS.GetSkinChoice() or C.SKIN_DEFAULT
@@ -122,6 +118,7 @@ local function ResetAppliedWaypointState()
     bridge.lastArrowSeenAt = 0
     bridge.lastArrowSeenMap = nil
     bridge.pendingFallbackSwitch = nil
+    bridge.destNilSince = nil
     bridge.lastSuppressLogAt = 0
     bridge.lastSuppressLogSig = nil
 end
@@ -302,7 +299,41 @@ local function IsGuideHiddenState(visibilityState)
     return visibilityState and visibilityState ~= "visible"
 end
 
-local function ShouldAllowHiddenArrowWaypoint(waypoint)
+local function IsPlayerDeadPendingCorpse()
+    if type(UnitIsDeadOrGhost) ~= "function" or not UnitIsDeadOrGhost("player") then
+        return false
+    end
+
+    return not (type(UnitIsGhost) == "function" and UnitIsGhost("player"))
+end
+
+local function GetVisibleGuideArrowWaypoint()
+    local Z = NS.ZGV()
+    local P = Z and Z.Pointer
+    local arrowFrame = P and P.ArrowFrame
+    return arrowFrame and arrowFrame.waypoint
+end
+
+local function HandlePendingDeathMirrorState()
+    if not IsPlayerDeadPendingCorpse() then
+        return false
+    end
+
+    local waypoint = GetVisibleGuideArrowWaypoint()
+    if waypoint and waypoint.type ~= "manual" and waypoint.type ~= "corpse" then
+        -- Zygor can keep showing the last guide arrow briefly after death.
+        -- Hold the current TomTom mirror until Zygor's visible arrow source
+        -- actually clears, then remove it in sync.
+        return true
+    end
+
+    if bridge.lastUID or bridge.lastSig or bridge.lastAppliedSource or bridge.pendingFallbackSwitch then
+        ClearBridgeMirror()
+    end
+    return true
+end
+
+local function ShouldAllowManualOverrideWaypoint(waypoint)
     if not waypoint then return true end
     if waypoint.type == "manual" or waypoint.type == "corpse" then
         return true
@@ -567,15 +598,7 @@ local function pushTomTom(m, x, y, title, src)
     NS.Log("SetCrazyArrow", src, m, x, y, t)
 end
 
-local function signature(m, x, y)
-    if type(x) == "number" then
-        x = math.floor(x * 10000 + 0.5) / 10000
-    end
-    if type(y) == "number" then
-        y = math.floor(y * 10000 + 0.5) / 10000
-    end
-    return tostring(m) .. ":" .. tostring(x) .. ":" .. tostring(y)
-end
+local signature = NS.Signature
 
 local function LogSuppressOnce(reason, src, title, m)
     local now = GetTime and GetTime() or 0
@@ -676,6 +699,10 @@ function NS.TickUpdate()
     end
 
     local visibilityState = SyncGuideVisibilityState()
+    if HandlePendingDeathMirrorState() then
+        return
+    end
+
     if MaybeAutoClearManualDestination(visibilityState) then
         return
     end
@@ -707,11 +734,39 @@ function NS.TickUpdate()
             return
         end
 
-        if bridge.lastAppliedSource and bridge.lastAppliedSource ~= "pointer.DestinationWaypoint" then
-            ClearBridgeMirror()
+        if bridge.lastAppliedSource then
+            if bridge.lastAppliedSource ~= "pointer.DestinationWaypoint" then
+                ClearBridgeMirror()
+            else
+                local hasGuideNavTitle = true
+                if not pointerOnly and type(NS.HasUsableCurrentGuideNavTitle) == "function" then
+                    hasGuideNavTitle = NS.HasUsableCurrentGuideNavTitle()
+                end
+
+                if not hasGuideNavTitle then
+                    bridge.destNilSince = nil
+                    ClearBridgeMirror()
+                    return
+                end
+
+                -- DestinationWaypoint can lag behind step changes.
+                -- Track how long extraction has been nil and clear after
+                -- a brief grace period.
+                local now = GetTime and GetTime() or 0
+                if not bridge.destNilSince then
+                    bridge.destNilSince = now
+                end
+                if now - bridge.destNilSince > C.DEST_NIL_EXTRACTION_GRACE_SECONDS then
+                    bridge.destNilSince = nil
+                    ClearBridgeMirror()
+                end
+            end
         end
         return
     end
+
+    bridge.destNilSince = nil
+
     if ShouldSuppressDestinationFallback(src, title, m, pointerOnly) then return end
 
     if type(NS.MaybeRepairWaypointUISession) == "function" then
@@ -792,7 +847,7 @@ function NS.HookZygorGuideGuards()
         P.ShowArrow = function(self, waypoint, ...)
             local visibilityState = GetGuideVisibilityState()
             if IsGuideHiddenState(visibilityState) then
-                if not ShouldAllowHiddenArrowWaypoint(waypoint) then
+                if not ShouldAllowManualOverrideWaypoint(waypoint) then
                     if type(self.HideArrow) == "function" then
                         self:HideArrow()
                     end

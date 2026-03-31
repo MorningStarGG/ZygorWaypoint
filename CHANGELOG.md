@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.6
+
+- **Waypoint UI compatibility / repair cleanup**
+  - Refactored the Waypoint UI compatibility layer into clearer sections with shared state, named constants, and centralized utility helpers.
+  - Added parent-map remapping for restore attempts on maps that cannot host Blizzard user waypoints, using world-position conversion to resolve a valid parent map.
+  - Added unsupported-map gating so failed Waypoint UI repairs no longer repeatedly retry on maps where Blizzard navigation cannot render a valid marker.
+  - Tightened repair timing so Waypoint UI only attempts session repair while TomTom’s Crazy Arrow is visible, preventing repeated restore attempts during cinematics or loading transitions.
+  - Improved session-preservation checks so Blizzard’s destination-reached clear is only suppressed when the mirrored destination should remain visible under Waypoint UI’s own hide-distance user defined settings.
+
+- **Bridge synchronization / stale waypoint handling**
+  - Added `DestinationWaypoint` nil-extraction grace handling so fallback destination state survives short Zygor transition windows without lingering on stale arrows.
+  - Reset the nil-grace state whenever extraction succeeds or the bridge state is cleared.
+  - Tightened clearing rules so if Zygor no longer has a valid navigation title, stale fallback TomTom arrows are removed instead of remaining visible.
+  - Improved death handling so TomTom stays synchronized with Zygor’s brief post-death arrow state, then clears in sync instead of disappearing too early or lingering. TomTom goes for a 3 count, King Kong Bundy demands a FIVE count. Ok bad joke, but in some cases Zygor nav text was ~2 seconds behind our death detection and removal of TomTom arrow.
+  - Added immediate resync ticks on death, ghost transitions, and loading screens so bridge state recovers faster around zoning, cinematics, and corpse handling.
+
+- **Guide waypoint extraction / title validity**
+  - Added shared blank-text and signature helpers, and tightened extraction so guide-owned pointer sources must resolve to a valid non-empty title before being mirrored.
+  - Corpse and pointer-only cases continue to use waypoint-owned titles, while normal guide mirrors now reject empty or stale title resolutions.
+  - Added visible-guide title checks to better determine when Zygor has a valid active destination versus when fallback state should be dropped.
+
+- **Shared utility cleanup**
+  - Added a new `ZWP_Util.lua` module for shared helpers such as `GetTomTom`, `GetTomTomArrow`, `IsBlankText`, `GetPlayerMapID`, and `Signature`.
+  - Updated TOC load order to ensure the shared utility module loads before dependent files.
+  - Removed duplicated helper implementations across the TomTom bridge, Waypoint UI compatibility layer, arrow theme bridge, and settings UI.
+
 ## 2.5a
 
 - **Mirrored title / fallback fixes**

@@ -9,13 +9,8 @@ state.theme = state.theme or {
 
 local themeState = state.theme
 
-local function GetTomTom()
-    return _G["TomTom"]
-end
-
-local function GetTomTomArrow()
-    return _G["TomTomCrazyArrow"]
-end
+local GetTomTom = NS.GetTomTom
+local GetTomTomArrow = NS.GetTomTomArrow
 
 local ZYGOR_THEME_DEFS = {
     [C.SKIN_STARLIGHT] = {

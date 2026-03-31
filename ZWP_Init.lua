@@ -13,6 +13,11 @@ f:RegisterEvent("CINEMATIC_START")
 f:RegisterEvent("CINEMATIC_STOP")
 f:RegisterEvent("PLAY_MOVIE")
 f:RegisterEvent("STOP_MOVIE")
+f:RegisterEvent("LOADING_SCREEN_ENABLED")
+f:RegisterEvent("LOADING_SCREEN_DISABLED")
+f:RegisterEvent("PLAYER_DEAD")
+f:RegisterEvent("PLAYER_ALIVE")
+f:RegisterEvent("PLAYER_UNGHOST")
 f:RegisterEvent("SUPER_TRACKING_CHANGED")
 f:RegisterEvent("USER_WAYPOINT_UPDATED")
 
@@ -40,13 +45,17 @@ f:SetScript("OnEvent", function(_, ev, arg1)
         NS.After(0.6, NS.HookTomTomRouting)
         NS.After(0.8, NS.ResumeTomTomRoutingStartupSync)
         NS.After(1.0, NS.TickUpdate)
-    elseif ev == "CINEMATIC_START" or ev == "PLAY_MOVIE" then
+    elseif ev == "CINEMATIC_START" or ev == "PLAY_MOVIE" or ev == "LOADING_SCREEN_ENABLED" then
         if type(NS.SetCinematicActive) == "function" then
             NS.SetCinematicActive(true)
         end
-    elseif ev == "CINEMATIC_STOP" or ev == "STOP_MOVIE" then
+    elseif ev == "CINEMATIC_STOP" or ev == "STOP_MOVIE" or ev == "LOADING_SCREEN_DISABLED" then
         if type(NS.SetCinematicActive) == "function" then
             NS.SetCinematicActive(false)
+        end
+    elseif ev == "PLAYER_DEAD" or ev == "PLAYER_ALIVE" or ev == "PLAYER_UNGHOST" then
+        if type(NS.TickUpdate) == "function" then
+            NS.After(0, NS.TickUpdate)
         end
     elseif ev == "SUPER_TRACKING_CHANGED" then
         local superType = C_SuperTrack and C_SuperTrack.GetHighestPrioritySuperTrackingType and C_SuperTrack.GetHighestPrioritySuperTrackingType()

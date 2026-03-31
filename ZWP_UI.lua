@@ -23,9 +23,7 @@ local ABOUT_DESCRIPTION = table.concat({
 }, "\n")
 local ABOUT_CARD_HEIGHT = 340
 
-local function GetTomTom()
-    return _G["TomTom"]
-end
+local GetTomTom = NS.GetTomTom
 
 local function GetStaticPopupPreferredIndex()
     return _G["STATICPOPUP_NUMDIALOGS"] or 4
