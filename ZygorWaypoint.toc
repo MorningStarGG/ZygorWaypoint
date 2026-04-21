@@ -1,22 +1,58 @@
-## Interface: 120001
+## Interface: 120001, 120005
 ## Title: ZygorWaypoint
-## Notes: Bridges Zygor waypoints to TomTom's Crazy Arrow and routes TomTom waypoints through Zygor Travel System.
+## Notes: Navigation bridge and 3D world overlay for Zygor Guides and TomTom.
 ## Author: MorningStarGG
-## Version: 2.6
+## Version: 3.0
 ## IconTexture: Interface\AddOns\ZygorWaypoint\media\icon.png
 ## SavedVariables: ZygorWaypointDB
+## SavedVariablesPerCharacter: ZygorWaypointCharDB
 ## RequiredDeps: TomTom, ZygorGuidesViewer
 
-ZygorWaypoint.lua
-ZWP_Core.lua
-ZWP_Util.lua
-ZWP_DB.lua
-ZWP_ZygorSource.lua
-ZWP_WaypointUI.lua
-ZWP_TomTomBridge.lua
-ZWP_Routing.lua
-ZWP_ZygorArrowThemes.lua
-ZWP_ZygorViewerChrome.lua
-ZWP_UI.lua
-ZWP_Commands.lua
-ZWP_Init.lua
+core/addon.lua
+core/core.lua
+core/util.lua
+core/db.lua
+zygor/canonical_target.lua
+zygor/display.lua
+zygor/source.lua
+zygor/guide_resolver/facts.lua
+zygor/guide_resolver/live_context.lua
+zygor/guide_resolver/scan.lua
+zygor/guide_resolver/presentation_context.lua
+zygor/guide_resolver/snapshot.lua
+zygor/guide_resolver/resolve.lua
+zygor/guide_resolver/cases.lua
+zygor/guide_resolver.lua
+zygor/arrow_themes.lua
+zygor/viewer_chrome.lua
+world_overlay/native/state.lua
+world_overlay/native/config.lua
+world_overlay/native/pinpoint_plaques.lua
+world_overlay/native/plaque_animation.lua
+world_overlay/native/colors.lua
+world_overlay/native/quest_type.lua
+world_overlay/native/content.lua
+world_overlay/native/frames.lua
+world_overlay/native/host.lua
+world_overlay/native/render.lua
+world_overlay/native/api.lua
+world_overlay/world_overlay.lua
+bridge/routing.lua
+bridge/tomtom_bridge_shared.lua
+bridge/tomtom_bridge_manual.lua
+bridge/tomtom_bridge_visibility.lua
+bridge/tomtom_bridge_sync.lua
+bridge/tomtom_bridge_hooks.lua
+docs/changelog_data.lua
+docs/help_pages.lua
+interface/help_frame.lua
+interface/options_shared.lua
+interface/options_color_control.xml
+interface/options_general.lua
+interface/options_world_overlay.lua
+interface/options_panel.lua
+interface/commands_settings.lua
+interface/commands_search.lua
+interface/commands_diagnostics.lua
+interface/commands_dispatch.lua
+core/init.lua
