@@ -13,6 +13,7 @@ local GetZygorDisplayState = NS.GetZygorDisplayState
 local SyncZygorDisplayState = NS.SyncZygorDisplayState
 local SyncWorldOverlay = NS.SyncWorldOverlay
 local ResolveGuideContentSnapshot = NS.ResolveGuideContentSnapshot
+local ResolveCanonicalGuideGoal = NS.ResolveCanonicalGuideGoal
 local NormalizeWaypointTitle = NS.NormalizeWaypointTitle
 local GetWaypointTravelDescriptorFields = NS.GetWaypointTravelDescriptorFields
 
@@ -46,6 +47,7 @@ local lastFinalizedKind = nil
 local lastFinalizedTravelType = nil
 local lastFinalizedSourceAddon = nil
 local lastFinalizedSearchKind = nil
+local lastFinalizedManualQuestID = nil
 local lastFinalizedResult = nil
 
 -- Single-entry cache for non-guide route fallback content snapshots. This avoids
@@ -56,7 +58,41 @@ local lastRouteFallbackGoalMapID = nil
 local lastRouteFallbackLegKind = nil
 local lastRouteFallbackRouteTravelType = nil
 local lastRouteFallbackSourceAddon = nil
+local lastRouteFallbackQuestID = nil
 local lastRouteFallbackResult = nil
+
+-- Reuse route-only heartbeat work when the live route inputs are unchanged.
+-- This keeps route title/semantic/travel normalization off the steady-state
+-- hot path without changing any route decision rules.
+local lastRouteBundle = {
+    source = nil,
+    title = nil,
+    step = nil,
+    canonicalResult = nil,
+    waypoint = nil,
+    waypointMapID = nil,
+    waypointX = nil,
+    waypointY = nil,
+    waypointTitle = nil,
+    waypointArrowTitle = nil,
+    waypointGoal = nil,
+    waypointPathnode = nil,
+    waypointSurrogate = nil,
+    destination = nil,
+    destinationType = nil,
+    destinationMapID = nil,
+    destinationX = nil,
+    destinationY = nil,
+    routeTitle = nil,
+    liveTravelType = nil,
+    liveTravelConfidence = nil,
+    routeCanonicalSource = nil,
+    routeGoalMapID = nil,
+    routeGoalX = nil,
+    routeGoalY = nil,
+    routeLegKind = nil,
+    routeTravelType = nil,
+}
 
 -- ============================================================
 -- Arrow / UID helpers
@@ -127,6 +163,14 @@ local function ResolveActiveSearchKind(targetKind, activeManualDestination)
     end
 
     return nil
+end
+
+local function ResolveActiveManualQuestID(activeManualDestination)
+    if type(NS.GetQuestIDForQuestBackedManualDestination) ~= "function" then
+        return nil
+    end
+
+    return NS.GetQuestIDForQuestBackedManualDestination(activeManualDestination)
 end
 
 local function ResolveBorrowedManualDestinationUID(mapID, x, y, kind)
@@ -557,6 +601,113 @@ local function ResolveRouteLeg(source, displayState)
     return waypoint, routeTitle
 end
 
+local function ResolveRouteBundle(source, title, displayState)
+    local routeWaypoint = ResolveWaypointForSource(source, displayState)
+    if type(routeWaypoint) ~= "table" then
+        return nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
+    end
+
+    local destinationWaypoint = ResolveWaypointForSource("pointer.DestinationWaypoint", displayState)
+    local Z = NS.ZGV()
+    local step = Z and Z.CurrentStep or nil
+    local canonicalResult = type(step) == "table" and type(ResolveCanonicalGuideGoal) == "function"
+        and ResolveCanonicalGuideGoal(step)
+        or nil
+    local waypointMapID, waypointX, waypointY = ReadWaypointCoords(routeWaypoint)
+    local destinationMapID, destinationX, destinationY = ReadWaypointCoords(destinationWaypoint)
+    local destinationType = type(destinationWaypoint) == "table" and destinationWaypoint.type or nil
+    local waypointTitle = routeWaypoint.title
+    local waypointArrowTitle = routeWaypoint.arrowtitle
+    local waypointGoal = routeWaypoint.goal
+    local waypointPathnode = routeWaypoint.pathnode
+    local waypointSurrogate = routeWaypoint.surrogate_for
+
+    if lastRouteBundle.source == source
+        and lastRouteBundle.title == title
+        and lastRouteBundle.step == step
+        and lastRouteBundle.canonicalResult == canonicalResult
+        and lastRouteBundle.waypoint == routeWaypoint
+        and lastRouteBundle.waypointMapID == waypointMapID
+        and lastRouteBundle.waypointX == waypointX
+        and lastRouteBundle.waypointY == waypointY
+        and lastRouteBundle.waypointTitle == waypointTitle
+        and lastRouteBundle.waypointArrowTitle == waypointArrowTitle
+        and lastRouteBundle.waypointGoal == waypointGoal
+        and lastRouteBundle.waypointPathnode == waypointPathnode
+        and lastRouteBundle.waypointSurrogate == waypointSurrogate
+        and lastRouteBundle.destination == destinationWaypoint
+        and lastRouteBundle.destinationType == destinationType
+        and lastRouteBundle.destinationMapID == destinationMapID
+        and lastRouteBundle.destinationX == destinationX
+        and lastRouteBundle.destinationY == destinationY
+    then
+        return routeWaypoint,
+            lastRouteBundle.routeTitle,
+            lastRouteBundle.liveTravelType,
+            lastRouteBundle.liveTravelConfidence,
+            lastRouteBundle.routeCanonicalSource,
+            lastRouteBundle.routeGoalMapID,
+            lastRouteBundle.routeGoalX,
+            lastRouteBundle.routeGoalY,
+            lastRouteBundle.routeLegKind,
+            lastRouteBundle.routeTravelType
+    end
+
+    local routeTitle = ResolveRouteSemanticTitle(routeWaypoint)
+    local routeCanonicalSource, routeGoalMapID, routeGoalX, routeGoalY, _, _, routeLegKind, routeTravelType
+    if type(NS.ResolveRouteLegSemantics) == "function" then
+        routeCanonicalSource, routeGoalMapID, routeGoalX, routeGoalY, _, _, routeLegKind, routeTravelType =
+            NS.ResolveRouteLegSemantics(nil, routeWaypoint, source, destinationWaypoint)
+    end
+    local liveTravelType, liveTravelConfidence = GetWaypointTravelDescriptorFields(
+        routeWaypoint,
+        source,
+        routeTitle or title,
+        routeTravelType,
+        routeLegKind,
+        routeCanonicalSource
+    )
+
+    lastRouteBundle.source = source
+    lastRouteBundle.title = title
+    lastRouteBundle.step = step
+    lastRouteBundle.canonicalResult = canonicalResult
+    lastRouteBundle.waypoint = routeWaypoint
+    lastRouteBundle.waypointMapID = waypointMapID
+    lastRouteBundle.waypointX = waypointX
+    lastRouteBundle.waypointY = waypointY
+    lastRouteBundle.waypointTitle = waypointTitle
+    lastRouteBundle.waypointArrowTitle = waypointArrowTitle
+    lastRouteBundle.waypointGoal = waypointGoal
+    lastRouteBundle.waypointPathnode = waypointPathnode
+    lastRouteBundle.waypointSurrogate = waypointSurrogate
+    lastRouteBundle.destination = destinationWaypoint
+    lastRouteBundle.destinationType = destinationType
+    lastRouteBundle.destinationMapID = destinationMapID
+    lastRouteBundle.destinationX = destinationX
+    lastRouteBundle.destinationY = destinationY
+    lastRouteBundle.routeTitle = routeTitle
+    lastRouteBundle.liveTravelType = liveTravelType
+    lastRouteBundle.liveTravelConfidence = liveTravelConfidence
+    lastRouteBundle.routeCanonicalSource = routeCanonicalSource
+    lastRouteBundle.routeGoalMapID = routeGoalMapID
+    lastRouteBundle.routeGoalX = routeGoalX
+    lastRouteBundle.routeGoalY = routeGoalY
+    lastRouteBundle.routeLegKind = routeLegKind
+    lastRouteBundle.routeTravelType = routeTravelType
+
+    return routeWaypoint,
+        routeTitle,
+        liveTravelType,
+        liveTravelConfidence,
+        routeCanonicalSource,
+        routeGoalMapID,
+        routeGoalX,
+        routeGoalY,
+        routeLegKind,
+        routeTravelType
+end
+
 -- ============================================================
 -- Content snapshot resolution
 -- ============================================================
@@ -640,8 +791,11 @@ local function ResolveInstanceTravelIconOverride(liveTravelType, routeTravelType
     return liveTravelType
 end
 
-local function ResolvePresentationIconHint(targetKind, snapshot, liveTravelType, liveTravelConfidence, searchKind)
+local function ResolvePresentationIconHint(targetKind, snapshot, liveTravelType, liveTravelConfidence, searchKind, manualQuestID)
     if targetKind == "manual" then
+        if type(manualQuestID) == "number" and manualQuestID > 0 then
+            return "quest", manualQuestID
+        end
         return (type(searchKind) == "string" and searchKind or "manual"), nil
     end
     if targetKind == "corpse" then
@@ -695,14 +849,16 @@ local function FinalizeContentSnapshot(
     liveTravelType,
     liveTravelConfidence,
     sourceAddon,
-    searchKind
+    searchKind,
+    manualQuestID
 )
     sourceAddon = NormalizeSourceAddon(sourceAddon)
     searchKind = targetKind == "manual" and type(searchKind) == "string" and searchKind or nil
+    manualQuestID = type(manualQuestID) == "number" and manualQuestID > 0 and manualQuestID or nil
 
     local snapshot = CloneContentSnapshot(baseSnapshot)
     if type(snapshot) ~= "table" then
-        if type(sourceAddon) ~= "string" and searchKind == nil then
+        if type(sourceAddon) ~= "string" and searchKind == nil and manualQuestID == nil then
             return nil
         end
         snapshot = {}
@@ -714,12 +870,18 @@ local function FinalizeContentSnapshot(
         and liveTravelType
         or nil
     snapshot.sourceAddon = sourceAddon
+    snapshot.manualQuestID = manualQuestID
+    if manualQuestID then
+        snapshot.semanticKind = "quest"
+        snapshot.semanticQuestID = manualQuestID
+    end
     snapshot.iconHintKind, snapshot.iconHintQuestID = ResolvePresentationIconHint(
         targetKind,
         snapshot,
         liveTravelType,
         liveTravelConfidence,
-        searchKind
+        searchKind,
+        manualQuestID
     )
     snapshot.contentSig = BuildFinalContentSig(snapshot)
     return snapshot
@@ -731,19 +893,27 @@ local function BuildRouteContentSnapshot(
     routeGoalMapID,
     routeLegKind,
     routeTravelType,
-    sourceAddon
+    sourceAddon,
+    routeQuestID
 )
     sourceAddon = NormalizeSourceAddon(sourceAddon)
+    routeQuestID = type(routeQuestID) == "number" and routeQuestID > 0 and routeQuestID or nil
     local resolvedLiveTravelType = liveTravelConfidence == "high"
         and type(liveTravelType) == "string"
         and liveTravelType
         or nil
     local resolvedIconHintKind = ResolveInstanceTravelIconOverride(resolvedLiveTravelType, routeTravelType)
+    local resolvedIconHintQuestID = nil
+    if resolvedIconHintKind == nil and routeQuestID then
+        resolvedIconHintKind = "quest"
+        resolvedIconHintQuestID = routeQuestID
+    end
     if resolvedLiveTravelType == nil
         and type(routeLegKind) ~= "string"
         and type(routeTravelType) ~= "string"
         and type(routeGoalMapID) ~= "number"
         and type(sourceAddon) ~= "string"
+        and type(routeQuestID) ~= "number"
     then
         return nil
     end
@@ -753,6 +923,7 @@ local function BuildRouteContentSnapshot(
         and routeLegKind == lastRouteFallbackLegKind
         and routeTravelType == lastRouteFallbackRouteTravelType
         and sourceAddon == lastRouteFallbackSourceAddon
+        and routeQuestID == lastRouteFallbackQuestID
         and lastRouteFallbackResult
     then
         return lastRouteFallbackResult
@@ -762,11 +933,14 @@ local function BuildRouteContentSnapshot(
         guideRoutePresentation = false,
         liveTravelType = resolvedLiveTravelType,
         iconHintKind = resolvedIconHintKind,
-        iconHintQuestID = nil,
+        iconHintQuestID = resolvedIconHintQuestID,
         routeGoalMapID = routeGoalMapID,
         routeLegKind = routeLegKind,
         routeTravelType = routeTravelType,
         sourceAddon = sourceAddon,
+        manualQuestID = routeQuestID,
+        semanticKind = routeQuestID and "quest" or nil,
+        semanticQuestID = routeQuestID,
     }
     snapshot.contentSig = BuildFinalContentSig(snapshot)
     lastRouteFallbackLiveTravelType = resolvedLiveTravelType
@@ -774,6 +948,7 @@ local function BuildRouteContentSnapshot(
     lastRouteFallbackLegKind = routeLegKind
     lastRouteFallbackRouteTravelType = routeTravelType
     lastRouteFallbackSourceAddon = sourceAddon
+    lastRouteFallbackQuestID = routeQuestID
     lastRouteFallbackResult = snapshot
     return snapshot
 end
@@ -823,6 +998,7 @@ function NS.TickUpdate()
     mapID, x, y, title, source, targetKind, manualAuthorityActive = NS.ExtractActiveManualTargetFromZygor(pointerOnly)
     local activeManualDestination = manualAuthorityActive and GetActiveManualDestination() or nil
     local sourceAddon = ResolveWaypointSourceAddon(activeManualDestination)
+    local manualQuestID = manualAuthorityActive and ResolveActiveManualQuestID(activeManualDestination) or nil
 
     if not manualAuthorityActive then
         local fallbackM, fallbackX, fallbackY, fallbackTitle, fallbackSource, fallbackKind
@@ -866,20 +1042,9 @@ function NS.TickUpdate()
     local liveTravelType, liveTravelConfidence
     local routeCanonicalSource, routeGoalMapID, routeGoalX, routeGoalY, routeLegKind, routeTravelType
     if targetKind == "route" then
-        routeWaypoint, routeTitle = ResolveRouteLeg(source, displayState)
-        if type(routeWaypoint) == "table" and type(NS.ResolveRouteLegSemantics) == "function" then
-            local destinationWaypoint = ResolveWaypointForSource("pointer.DestinationWaypoint", displayState)
-            routeCanonicalSource, routeGoalMapID, routeGoalX, routeGoalY, _, _, routeLegKind, routeTravelType =
-                NS.ResolveRouteLegSemantics(nil, routeWaypoint, source, destinationWaypoint)
-        end
-        liveTravelType, liveTravelConfidence = GetWaypointTravelDescriptorFields(
-            routeWaypoint,
-            source,
-            routeTitle or title,
-            routeTravelType,
-            routeLegKind,
-            routeCanonicalSource
-        )
+        routeWaypoint, routeTitle, liveTravelType, liveTravelConfidence,
+            routeCanonicalSource, routeGoalMapID, routeGoalX, routeGoalY, routeLegKind, routeTravelType =
+            ResolveRouteBundle(source, title, displayState)
     end
 
     local baseContentSnapshot
@@ -918,13 +1083,15 @@ function NS.TickUpdate()
             routeGoalMapID,
             routeLegKind,
             routeTravelType,
-            sourceAddon
+            sourceAddon,
+            manualQuestID
         )
     elseif baseContentSnapshot == lastFinalizedBase
         and targetKind == lastFinalizedKind
         and effectiveTravelType == lastFinalizedTravelType
         and sourceAddon == lastFinalizedSourceAddon
         and currentSearchKind == lastFinalizedSearchKind
+        and manualQuestID == lastFinalizedManualQuestID
         and lastFinalizedResult
     then
         contentSnapshot = lastFinalizedResult
@@ -936,13 +1103,15 @@ function NS.TickUpdate()
             liveTravelType,
             liveTravelConfidence,
             sourceAddon,
-            currentSearchKind
+            currentSearchKind,
+            manualQuestID
         )
         lastFinalizedBase = baseContentSnapshot
         lastFinalizedKind = targetKind
         lastFinalizedTravelType = effectiveTravelType
         lastFinalizedSourceAddon = sourceAddon
         lastFinalizedSearchKind = currentSearchKind
+        lastFinalizedManualQuestID = manualQuestID
         lastFinalizedResult = contentSnapshot
     end
 

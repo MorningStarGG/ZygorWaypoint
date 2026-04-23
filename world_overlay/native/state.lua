@@ -120,6 +120,8 @@ state.worldOverlayNative = state.worldOverlayNative or {
     cachedPinpointSubtext = nil,
     contentSnapshot = nil,
     questIconCache = {},
+    questTypeDetailsCache = {},
+    questSubtextCache = {},
     -- Host restore / context
     lastHostRestoreAt = 0,
     contextDisplayMode = nil,
@@ -146,6 +148,8 @@ M.arrival = M.overlay.arrival
 M.derived = M.overlay.derived
 M.transition = M.overlay.transition
 M.questIconCache = M.overlay.questIconCache
+M.questTypeDetailsCache = M.overlay.questTypeDetailsCache
+M.questSubtextCache = M.overlay.questSubtextCache
 M.fontStringTextCache = setmetatable({}, { __mode = "k" })
 M.settingsSnapshot = {}
 

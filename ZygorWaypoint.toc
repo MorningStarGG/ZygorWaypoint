@@ -1,8 +1,8 @@
-## Interface: 120001, 120005
+## Interface: 120005
 ## Title: ZygorWaypoint
 ## Notes: Navigation bridge and 3D world overlay for Zygor Guides and TomTom.
 ## Author: MorningStarGG
-## Version: 3.0
+## Version: 3.1
 ## IconTexture: Interface\AddOns\ZygorWaypoint\media\icon.png
 ## SavedVariables: ZygorWaypointDB
 ## SavedVariablesPerCharacter: ZygorWaypointCharDB
@@ -41,6 +41,7 @@ bridge/routing.lua
 bridge/tomtom_bridge_shared.lua
 bridge/tomtom_bridge_manual.lua
 bridge/tomtom_bridge_visibility.lua
+bridge/tomtom_bridge_quest_takeover.lua
 bridge/tomtom_bridge_sync.lua
 bridge/tomtom_bridge_hooks.lua
 docs/changelog_data.lua

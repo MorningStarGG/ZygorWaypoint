@@ -2,7 +2,7 @@
 
 > A navigation bridge and 3D world overlay for **Zygor Guides Viewer** and **TomTom** — using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-3.0-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
+![Version](https://img.shields.io/badge/version-3.1-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -180,6 +180,8 @@ When a manual waypoint auto-clears:
 
 The arrival distance is configurable.
 
+------------------------------------------------------------------------
+
 ## Manual Waypoint Queue
 
 ZygorWaypoint can queue imported manual waypoint runs for sequential routing.
@@ -192,6 +194,41 @@ With **Manual Queue Auto-Routing** enabled:
 - the first target is routed immediately
 - clearing or arriving at the active queue target (when `Manual Waypoint Auto-Clear is enabled`) will advance the queue
 - routing continues until the queue is finished. Skipped waypoints will wrap around and remain in the queue until all queued waypoints have been cleared
+
+------------------------------------------------------------------------
+
+## Blizzard Supertracking and Tracked Quests
+
+ZygorWaypoint can also work with Blizzard’s built-in quest and waypoint supertracking.
+
+When enabled:
+
+- a **supertracked Blizzard quest** now becomes a manual Zygor-routed destination
+- a newly **tracked quest** can be auto-routed without needing to be supertracked first
+- explicit **Blizzard map/user waypoints** can be adopted through the same routing flow
+
+Supertracked Blizzard quests behave more like guide-driven waypoints.
+
+Regular Blizzard supertracked waypoints behave like Zygor-routed manual waypoints.
+
+### Available Controls
+
+- **Auto-Route Tracked Quests** automatically routes newly watched Blizzard quests
+- **Auto-Clear Supertracked Quests on Arrival** makes supertracked quest routes use the same arrival-clear distance as manual waypoints
+
+If supertracked quest auto-clear is disabled, those routes behave more like guide-driven quest routes and do not clear just because you entered the manual arrival radius.
+
+Supertracked quests still clear when the quest is:
+
+- turned in
+- untracked
+- removed from the quest log
+- no longer resolvable to a destination
+
+Relevant slash commands:
+
+- `/zwp trackroute on|off|toggle`
+- `/zwp questclear on|off|toggle`
 
 ------------------------------------------------------------------------
 
@@ -256,6 +293,8 @@ General settings cover things like:
 - arrow alignment
 - compact guide presentation
 - guide background fade behavior
+- tracked quest auto-routing
+- supertracked quest arrival auto-clear
 - manual queue auto-routing
 - manual waypoint auto-clear and clear distance
 
@@ -302,6 +341,8 @@ Root command:
 | `/zwp align on\|off` | Toggle arrow alignment |
 | `/zwp manualclear on\|off\|toggle` | Toggle auto-clear for manual waypoints |
 | `/zwp cleardistance <5-100>` | Set the manual waypoint auto-clear distance |
+| `/zwp trackroute on\|off\|toggle` | Toggle auto-routing for newly tracked Blizzard quests |
+| `/zwp questclear on\|off\|toggle` | Toggle arrival auto-clear for supertracked Blizzard quest routes |
 | `/zwp compact on\|off\|toggle` | Toggle compact guide mode |
 | `/zwp search <type>` | Route to a supported search target |
 | `/zwp skin default\|starlight\|stealth` | Change arrow appearance |
@@ -418,6 +459,35 @@ Important changes:
 ------------------------------------------------------------------------
 
 # Changelog
+
+## 3.1
+
+- **Blizzard supertracking and supertracked quest routing**
+  - Added a new Blizzard supertracking takeover to the bridge that routes them through Zygor.
+  - Added optional auto-routing setting in the options for newly watched Blizzard quests.
+  - Added adoption and cleanup for explicit Blizzard map/user waypoints through the same manual routing flow.
+  - Quest-backed manual destinations now refresh automatically when quest destinations move and clear when the quest is turned in, removed, untracked, or no longer resolves.
+
+- **Quest-backed manual presentation**
+  - Quest-backed manual destinations now carry quest metadata through bridge snapshotting, explicit removal handling, and follow-up routing.
+  - Native overlay icons now resolve quest-aware presentation for quest-backed manual and route destinations instead of falling back to generic manual/travel glyphs.
+  - Added quest objective / ready-to-turn-in subtext support for supertracked quests.
+  - Added native overlay quest cache invalidation so quest icon and subtext changes react correctly to quest log updates.
+
+- **New controls, settings, and help coverage**
+  - Added `Auto-Route Tracked Quests` and `Auto-Clear Supertracked Quests on Arrival` settings.
+  - Added `/zwp trackroute` and `/zwp questclear` commands plus status output coverage for both toggles.
+  - Updated in-game help text for tracked quests, supertracked quest arrival clearing, and related manual clear behavior.
+  - Corrected the Steampunk plaque preview asset reference in the help pages.
+
+- **Overlay and Blizzard visual handling**
+  - Improved SuperTrackedFrame suppression refresh behavior after login, user waypoint changes, and supertracking changes. This should resolve cases where the Blizzard supertracked diamond became visible.
+  - Blizzard supertracked waypoints now integrate more cleanly with arrival auto-clear rules and explicit removal behavior.
+
+- **Performance enhancements**
+  - Reduced movement churn by skipping arrow description normalization when the main arrow title is already present.
+  - Added route-bundle caching so route title, travel, and semantic resolution are reused while live route inputs stay stable.
+  - Reused content-signature and cache-key buffers and added quest type / quest subtext caches to reduce table churn in hot paths.
 
 ## 3.0
 

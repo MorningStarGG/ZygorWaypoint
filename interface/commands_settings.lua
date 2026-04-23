@@ -174,6 +174,8 @@ local function usage()
     NS.Msg("       /zwp align on|off")
     NS.Msg("       /zwp manualclear on|off|toggle")
     NS.Msg("       /zwp cleardistance <" .. tostring(C.MANUAL_CLEAR_DISTANCE_MIN) .. "-" .. tostring(C.MANUAL_CLEAR_DISTANCE_MAX) .. ">")
+    NS.Msg("       /zwp trackroute on|off|toggle")
+    NS.Msg("       /zwp questclear on|off|toggle")
     NS.Msg("       /zwp compact on|off|toggle")
     NS.Msg("       /zwp resolvercases [all|case_id]")
     NS.Msg("       /zwp plaque [width] | /zwp plaque short [width] | /zwp plaque wrap [width] | /zwp plaque off")
@@ -273,6 +275,42 @@ local function handleClearDistance(arg)
 
     local applied = NS.SetManualWaypointClearDistance(value)
     NS.Msg(string.format("Manual waypoint clear distance set to %d yd", applied))
+end
+
+local function handleQuestClear(arg)
+    local current = NS.IsSuperTrackedQuestAutoClearEnabled()
+
+    if arg == "on" then
+        NS.SetSuperTrackedQuestAutoClearEnabled(true)
+        NS.Msg("Supertracked quest arrival clear: enabled")
+    elseif arg == "off" then
+        NS.SetSuperTrackedQuestAutoClearEnabled(false)
+        NS.Msg("Supertracked quest arrival clear: disabled")
+    elseif arg == "toggle" then
+        local enabled = NS.SetSuperTrackedQuestAutoClearEnabled(not current)
+        NS.Msg("Supertracked quest arrival clear:", enabled and "enabled" or "disabled")
+    else
+        NS.Msg("Supertracked quest arrival clear:", current and "enabled" or "disabled")
+        NS.Msg("Usage: /zwp questclear on | off | toggle")
+    end
+end
+
+local function handleTrackRoute(arg)
+    local current = NS.IsTrackedQuestAutoRouteEnabled()
+
+    if arg == "on" then
+        NS.SetTrackedQuestAutoRouteEnabled(true)
+        NS.Msg("Tracked quest auto-route: enabled")
+    elseif arg == "off" then
+        NS.SetTrackedQuestAutoRouteEnabled(false)
+        NS.Msg("Tracked quest auto-route: disabled")
+    elseif arg == "toggle" then
+        local enabled = NS.SetTrackedQuestAutoRouteEnabled(not current)
+        NS.Msg("Tracked quest auto-route:", enabled and "enabled" or "disabled")
+    else
+        NS.Msg("Tracked quest auto-route:", current and "enabled" or "disabled")
+        NS.Msg("Usage: /zwp trackroute on | off | toggle")
+    end
 end
 
 local function handleCompact(arg)
@@ -380,6 +418,10 @@ local function handleStatus()
         "Manual auto-clear:",
         NS.IsManualWaypointAutoClearEnabled() and "on" or "off",
         string.format("(%d yd)", NS.GetManualWaypointClearDistance()),
+        "Track route:",
+        NS.IsTrackedQuestAutoRouteEnabled() and "on" or "off",
+        "Supertrack arrival clear:",
+        NS.IsSuperTrackedQuestAutoClearEnabled() and "on" or "off",
         "Compact viewer:",
         NS.IsGuideStepsOnlyHoverEnabled() and "on" or "off"
     )
@@ -402,5 +444,7 @@ M.handleSkin = handleSkin
 M.handleScale = handleScale
 M.handleManualClear = handleManualClear
 M.handleClearDistance = handleClearDistance
+M.handleTrackRoute = handleTrackRoute
+M.handleQuestClear = handleQuestClear
 M.handleCompact = handleCompact
 M.handleStatus = handleStatus

@@ -126,7 +126,7 @@ local function MarkExplicitManualRemoveIntent()
     end
 
     local destination = GetActiveManualDestination()
-    if destination and destination.zwpExternalTomTom == true then
+    if destination then
         NS.MarkPendingZygorManualRemoveIntent(destination)
     end
 end
@@ -139,7 +139,7 @@ local function FinalizePendingExplicitManualRemoval()
     end
 
     local destination = NS.ConsumePendingZygorManualRemoveIntent()
-    if type(destination) ~= "table" or destination.zwpExternalTomTom ~= true then
+    if type(destination) ~= "table" then
         return
     end
 

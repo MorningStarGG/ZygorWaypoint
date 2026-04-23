@@ -310,7 +310,13 @@ end
 -- ============================================================
 
 local function SnapshotExplicitManualRemoveDestination(destination)
-    if type(destination) ~= "table" or destination.zwpExternalTomTom ~= true then
+    if type(destination) ~= "table" then
+        return
+    end
+
+    local questID = type(destination.zwpQuestID) == "number" and destination.zwpQuestID > 0 and destination.zwpQuestID or nil
+    local isQuestTakeover = destination.zwpBlizzardQuestSupertrack == true and questID ~= nil
+    if destination.zwpExternalTomTom ~= true and not isQuestTakeover then
         return
     end
 
@@ -319,11 +325,16 @@ local function SnapshotExplicitManualRemoveDestination(destination)
     return {
         type = "manual",
         title = destination.title,
-        zwpExternalTomTom = true,
+        zwpExternalTomTom = destination.zwpExternalTomTom == true or nil,
         zwpExternalSig = destination.zwpExternalSig,
         zwpSourceAddon = destination.zwpSourceAddon,
         zwpQueueIndex = destination.zwpQueueIndex,
         zwpQueueSig = destination.zwpQueueSig,
+        zwpBlizzardQuestSupertrack = isQuestTakeover or nil,
+        zwpQuestID = questID,
+        zwpQuestDestMapID = destination.zwpQuestDestMapID,
+        zwpQuestDestX = destination.zwpQuestDestX,
+        zwpQuestDestY = destination.zwpQuestDestY,
         map = mapID,
         mapid = mapID,
         mapID = mapID,

@@ -134,4 +134,32 @@ function M.AddGeneralOptions(category)
             NS.SetManualWaypointClearDistance(value)
         end
     )
+
+    AddCheckbox(
+        category,
+        "TRACKED_QUEST_AUTO_ROUTE",
+        "Auto-Route Tracked Quests",
+        DEFAULTS.trackedQuestAutoRoute,
+        "When enabled, tracking a quest will set the quest as your current waypoint.",
+        function()
+            return NS.IsTrackedQuestAutoRouteEnabled()
+        end,
+        function(value)
+            NS.SetTrackedQuestAutoRouteEnabled(value)
+        end
+    )
+
+    AddCheckbox(
+        category,
+        "SUPERTRACKED_QUEST_AUTO_CLEAR",
+        "Auto-Clear Supertracked Quests on Arrival",
+        DEFAULTS.superTrackedQuestAutoClear,
+        "When enabled, supertracked Blizzard quests — including tracked quests — use Auto-Clear Manual Waypoints on Arrival and the Manual Waypoint Clear Distance. When disabled, they ignore arrival distance, just like guide-driven quest routes. Blizzard quest routes still always clear when the quest is turned in, untracked, removed from the log, or no longer resolves.",
+        function()
+            return NS.IsSuperTrackedQuestAutoClearEnabled()
+        end,
+        function(value)
+            NS.SetSuperTrackedQuestAutoClearEnabled(value)
+        end
+    )
 end

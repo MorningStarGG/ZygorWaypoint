@@ -722,8 +722,13 @@ local function SuppressSuperTrackedVisuals(superTrackedFrame)
     end
 end
 
+local function ShouldSuppressSuperTrackedVisuals()
+    local init = NS.State and NS.State.init or nil
+    return init and init.playerLoggedIn == true or false
+end
+
 local function ApplySuperTrackedFrameVisibility()
-    local shouldSuppress = target.active
+    local shouldSuppress = ShouldSuppressSuperTrackedVisuals()
     local superTrackedFrame = rawget(_G, "SuperTrackedFrame")
     if overlay.lastSuppressionWanted == shouldSuppress
         and overlay.suppressedSuperTrackedVisualRootRef == superTrackedFrame
@@ -1051,3 +1056,4 @@ M.ResetFrameTextCaches = ResetFrameTextCaches
 M.ShowOnlyFrame = ShowOnlyFrame
 M.ShowFrameSet = ShowFrameSet
 M.ResetModeTransition = ResetModeTransition
+M.EnsureOverlayHooks = EnsureOverlayHooks

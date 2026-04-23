@@ -14,6 +14,9 @@ local InvalidateFrameCacheEntry = M.InvalidateFrameCacheEntry
 local InvalidateFrameVisualsOnly = M.InvalidateFrameVisualsOnly
 local ApplyOverlayAdornmentStyleToAll = M.ApplyOverlayAdornmentStyleToAll
 local EnsureDriverRoot = M.EnsureDriverRoot
+local EnsureOverlayHooks = M.EnsureOverlayHooks
+local InvalidateQuestTypeDetailsCache = M.InvalidateQuestTypeDetailsCache
+local InvalidateQuestSubtextCache = M.InvalidateQuestSubtextCache
 local EnsureWaypointFrame = M.EnsureWaypointFrame
 local EnsurePinpointFrame = M.EnsurePinpointFrame
 local EnsureNavigatorFrame = M.EnsureNavigatorFrame
@@ -68,6 +71,29 @@ function NS.InitializeNativeWorldOverlay()
     -- Eagerly create all overlay frames at init time so SetPropagateMouseClicks
     -- and other protected methods are never called from inside a secure callback.
     M.EnsureFrames()
+end
+
+function NS.RefreshSuperTrackedFrameSuppression()
+    if type(EnsureOverlayHooks) == "function" then
+        EnsureOverlayHooks()
+    end
+    ApplySuperTrackedFrameVisibility()
+end
+
+function NS.InvalidateNativeOverlayQuestCaches(questID)
+    if type(InvalidateQuestTypeDetailsCache) == "function" then
+        InvalidateQuestTypeDetailsCache(questID)
+    end
+    if type(InvalidateQuestSubtextCache) == "function" then
+        InvalidateQuestSubtextCache(questID)
+    end
+
+    overlay.contentDirty = true
+    M.frameCacheDirty = true
+    overlay.cachedIconSpec = nil
+    overlay.cachedPinpointSubtext = nil
+    overlay.lastContentRefresh = 0
+    ResetFrameTextCaches()
 end
 
 function NS.ClearNativeWorldOverlay()

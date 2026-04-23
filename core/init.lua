@@ -42,6 +42,8 @@ f:RegisterEvent("QUEST_COMPLETE")
 f:RegisterEvent("QUEST_FINISHED")
 f:RegisterEvent("QUEST_ACCEPTED")
 f:RegisterEvent("QUEST_TURNED_IN")
+f:RegisterEvent("QUEST_LOG_UPDATE")
+f:RegisterEvent("QUEST_REMOVED")
 
 -- ============================================================
 -- Readiness checks and retry
@@ -145,6 +147,8 @@ f:SetScript("OnEvent", function(_, ev, arg1)
         end
     elseif ev == "PLAYER_LOGIN" then
         state.init.playerLoggedIn = true
+        SafeCall(NS.RefreshSuperTrackedFrameSuppression)
+        SafeCall(NS.InstallBlizzardQuestTakeoverHooks)
         -- Immediate method hooks on the viewer. These are safe to install as soon
         -- as PLAYER_LOGIN fires, even if Pointer-derived objects are not fully ready.
         SafeCall(NS.HookZygorTickHooks)
@@ -181,6 +185,7 @@ f:SetScript("OnEvent", function(_, ev, arg1)
             end
         end)
         NS.After(0.8, function() SafeCall(NS.ResumeTomTomRoutingStartupSync) end)
+        NS.After(0.9, function() SafeCall(NS.SyncSuperTrackedQuestToManual) end)
         NS.After(1.0, function() SafeCall(NS.TickUpdate) end)
     elseif ev == "CINEMATIC_START" or ev == "PLAY_MOVIE" or ev == "LOADING_SCREEN_ENABLED" then
         SafeCall(NS.SetCinematicActive, true)
@@ -191,6 +196,7 @@ f:SetScript("OnEvent", function(_, ev, arg1)
     elseif ev == "SUPER_TRACKING_CHANGED" then
         local superType = C_SuperTrack.GetHighestPrioritySuperTrackingType and C_SuperTrack.GetHighestPrioritySuperTrackingType()
         NS.LogSuperTrackTrace("SUPER_TRACKING_CHANGED", tostring(superType))
+        SafeCall(NS.RefreshSuperTrackedFrameSuppression)
         if superType ~= Enum.SuperTrackingType.UserWaypoint then
             NS.After(0, function()
                 SafeCall(NS.RefreshWorldOverlay)
@@ -204,7 +210,11 @@ f:SetScript("OnEvent", function(_, ev, arg1)
         end
         local hasUserWaypoint = C_Map.HasUserWaypoint and C_Map.HasUserWaypoint()
         NS.LogSuperTrackTrace("USER_WAYPOINT_UPDATED", tostring(hasUserWaypoint))
+        SafeCall(NS.RefreshSuperTrackedFrameSuppression)
         NS.After(0, function() SafeCall(NS.RefreshWorldOverlay) end)
+    elseif ev == "QUEST_LOG_UPDATE" or ev == "QUEST_REMOVED" then
+        SafeCall(NS.InvalidateNativeOverlayQuestCaches, arg1)
+        SafeCall(NS.ScheduleActiveQuestBackedManualRefresh, ev, arg1)
     elseif ev == "NAVIGATION_FRAME_CREATED" then
         SafeCall(NS.OnNativeNavFrameCreated)
     elseif ev == "NAVIGATION_FRAME_DESTROYED" then
@@ -219,6 +229,10 @@ f:SetScript("OnEvent", function(_, ev, arg1)
         or ev == "QUEST_ACCEPTED"
         or ev == "QUEST_TURNED_IN"
     then
+        SafeCall(NS.InvalidateNativeOverlayQuestCaches, arg1)
+        if ev == "QUEST_TURNED_IN" then
+            SafeCall(NS.ScheduleActiveQuestBackedManualRefresh, ev, arg1)
+        end
         SafeCall(NS.InvalidateGuideResolverDialogState)
         if ev == "QUEST_ACCEPTED" or ev == "QUEST_TURNED_IN" then
             SafeCall(NS.InvalidateGuideResolverFactsState)

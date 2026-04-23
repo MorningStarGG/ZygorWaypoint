@@ -64,6 +64,8 @@ local DB_DEFAULTS = {
     guideStepBackgroundsHover = C.GUIDE_STEP_BACKGROUND_MODE_NONE,
     manualWaypointAutoClear = false,
     manualWaypointClearDistance = C.MANUAL_CLEAR_DISTANCE_DEFAULT,
+    trackedQuestAutoRoute = false,
+    superTrackedQuestAutoClear = false,
     manualQueueAutoRouting = false,
 }
 
@@ -417,6 +419,11 @@ function NS.ApplyDBDefaults()
         end
     end
 
+    if meta.superTrackedQuestArrivalClearModeVersion ~= 1 then
+        db.superTrackedQuestAutoClear = false
+        meta.superTrackedQuestArrivalClearModeVersion = 1
+    end
+
     db.enabled = nil
 
     db.tomtomSkin = NS.NormalizeSkin(db.tomtomSkin)
@@ -648,6 +655,28 @@ function NS.SetManualWaypointClearDistance(value)
     local db = NS.GetDB()
     db.manualWaypointClearDistance = NS.NormalizeManualWaypointClearDistance(value)
     return db.manualWaypointClearDistance
+end
+
+function NS.IsTrackedQuestAutoRouteEnabled()
+    local db = NS.GetDB()
+    return db.trackedQuestAutoRoute == true
+end
+
+function NS.SetTrackedQuestAutoRouteEnabled(enabled)
+    local db = NS.GetDB()
+    db.trackedQuestAutoRoute = enabled and true or false
+    return db.trackedQuestAutoRoute
+end
+
+function NS.IsSuperTrackedQuestAutoClearEnabled()
+    local db = NS.GetDB()
+    return db.superTrackedQuestAutoClear ~= false
+end
+
+function NS.SetSuperTrackedQuestAutoClearEnabled(enabled)
+    local db = NS.GetDB()
+    db.superTrackedQuestAutoClear = enabled and true or false
+    return db.superTrackedQuestAutoClear
 end
 
 function NS.IsManualQueueAutoRoutingEnabled()

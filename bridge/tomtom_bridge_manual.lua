@@ -28,6 +28,14 @@ local function IsAutoClearableManualDestination(waypoint)
         return false
     end
 
+    if type(NS.GetQuestIDForQuestBackedManualDestination) == "function"
+        and NS.GetQuestIDForQuestBackedManualDestination(waypoint)
+    then
+        return type(NS.IsQuestBackedManualArrivalAutoClearEnabled) == "function"
+            and NS.IsQuestBackedManualArrivalAutoClearEnabled(waypoint)
+            or false
+    end
+
     if type(waypoint.zwpQueueIndex) == "number" then
         return type(NS.IsActiveQueuedManualDestination) == "function"
             and NS.IsActiveQueuedManualDestination(waypoint)
@@ -74,7 +82,11 @@ end
 -- Clean up a removed manual destination and chain the next route.
 -- ============================================================
 
-local function ResolveManualDestinationFollowup(destination)
+local function ResolveManualDestinationFollowup(destination, clearReason)
+    if type(NS.HandleRemovedBlizzardQuestDestination) == "function" then
+        NS.HandleRemovedBlizzardQuestDestination(destination, clearReason)
+    end
+
     if type(destination) ~= "table" or destination.zwpExternalTomTom ~= true then
         return
     end
@@ -116,7 +128,7 @@ local function ApplyRemovedManualDestinationFollowup(nextQueuedRoute)
 end
 
 local function HandleRemovedManualDestination(destination)
-    local nextQueuedRoute = ResolveManualDestinationFollowup(destination)
+    local nextQueuedRoute = ResolveManualDestinationFollowup(destination, "explicit")
     return ApplyRemovedManualDestinationFollowup(nextQueuedRoute)
 end
 
@@ -125,14 +137,14 @@ end
 -- Proximity-based automatic clearance of manual destinations.
 -- ============================================================
 
-local function ClearActiveManualDestination(visibilityState)
+local function ClearActiveManualDestination(visibilityState, clearReason)
     local Z, pointer = GetZygorPointer()
     if not Z or not pointer then
         return false
     end
 
     local destination = GetActiveManualDestination()
-    local nextQueuedRoute = ResolveManualDestinationFollowup(destination)
+    local nextQueuedRoute = ResolveManualDestinationFollowup(destination, clearReason or "system")
 
     if type(pointer.ClearWaypoints) ~= "function" then
         return false
@@ -204,7 +216,7 @@ local function MaybeAutoClearManualDestination(visibilityState)
         return false
     end
 
-    return ClearActiveManualDestination(visibilityState)
+    return ClearActiveManualDestination(visibilityState, "arrival")
 end
 
 M.GetActiveManualDestination = GetActiveManualDestination

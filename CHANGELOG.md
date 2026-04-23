@@ -1,5 +1,34 @@
 # Changelog
 
+## 3.1
+
+- **Blizzard supertracking and supertracked quest routing**
+  - Added a new Blizzard supertracking takeover to the bridge that routes them through Zygor.
+  - Added optional auto-routing setting in the options for newly watched Blizzard quests.
+  - Added adoption and cleanup for explicit Blizzard map/user waypoints through the same manual routing flow.
+  - Quest-backed manual destinations now refresh automatically when quest destinations move and clear when the quest is turned in, removed, untracked, or no longer resolves.
+
+- **Quest-backed manual presentation**
+  - Quest-backed manual destinations now carry quest metadata through bridge snapshotting, explicit removal handling, and follow-up routing.
+  - Native overlay icons now resolve quest-aware presentation for quest-backed manual and route destinations instead of falling back to generic manual/travel glyphs.
+  - Added quest objective / ready-to-turn-in subtext support for supertracked quests.
+  - Added native overlay quest cache invalidation so quest icon and subtext changes react correctly to quest log updates.
+
+- **New controls, settings, and help coverage**
+  - Added `Auto-Route Tracked Quests` and `Auto-Clear Supertracked Quests on Arrival` settings.
+  - Added `/zwp trackroute` and `/zwp questclear` commands plus status output coverage for both toggles.
+  - Updated in-game help text for tracked quests, supertracked quest arrival clearing, and related manual clear behavior.
+  - Corrected the Steampunk plaque preview asset reference in the help pages.
+
+- **Overlay and Blizzard visual handling**
+  - Improved SuperTrackedFrame suppression refresh behavior after login, user waypoint changes, and supertracking changes. This should resolve cases where the Blizzard supertracked diamond became visible.
+  - Blizzard supertracked waypoints now integrate more cleanly with arrival auto-clear rules and explicit removal behavior.
+
+- **Performance enhancements**
+  - Reduced movement churn by skipping arrow description normalization when the main arrow title is already present.
+  - Added route-bundle caching so route title, travel, and semantic resolution are reused while live route inputs stay stable.
+  - Reused content-signature and cache-key buffers and added quest type / quest subtext caches to reduce table churn in hot paths.
+
 ## 3.0
 
 - **Major addon rewrite**

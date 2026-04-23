@@ -232,7 +232,10 @@ function NS.SyncZygorDisplayState()
     local frameVisible = arrowFrame and type(arrowFrame.IsShown) == "function" and arrowFrame:IsShown() or false
     local visibleArrowFrame = frameVisible and arrowFrame or nil
     local title = visibleArrowFrame and readFrameText(visibleArrowFrame.title) or nil
-    local desc = visibleArrowFrame and readFrameText(visibleArrowFrame.desc) or nil
+    -- Zygor's desc text can change every movement tick (distance/time) while the
+    -- title stays semantically stable. Avoid normalizing desc unless it is actually
+    -- needed as the visible label fallback.
+    local desc = (visibleArrowFrame and not title) and readFrameText(visibleArrowFrame.desc) or nil
     local label = title or desc
     local textVisible = frameVisible and not IsTextBlank(label)
     local specialMode = visibleArrowFrame and visibleArrowFrame.specialmode or nil

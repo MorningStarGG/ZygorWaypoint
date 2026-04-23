@@ -3,6 +3,7 @@ local M = NS.Internal.WorldOverlayNative
 
 local QuestClassification = Enum.QuestClassification or {}
 local QuestTag = Enum.QuestTag or {}
+local questTypeDetailsCache = M.questTypeDetailsCache
 
 local _cachedQuestSubtypeQuestID, _cachedQuestSubtypeResult
 
@@ -195,6 +196,11 @@ local function ResolveQuestTypeDetails(questID)
         return nil
     end
 
+    local cachedDetails = type(questTypeDetailsCache) == "table" and questTypeDetailsCache[questID] or nil
+    if cachedDetails ~= nil then
+        return cachedDetails ~= false and cachedDetails or nil
+    end
+
     local classification = C_QuestInfoSystem.GetQuestClassification and C_QuestInfoSystem.GetQuestClassification(questID)
     local _, questTagID, questTagName = GetQuestTagDetails(questID)
     local questType = C_QuestLog.GetQuestType and C_QuestLog.GetQuestType(questID) or nil
@@ -263,7 +269,7 @@ local function ResolveQuestTypeDetails(questID)
         typeSource = "blizzard-repeatable"
     end
 
-    return {
+    local details = {
         questID = questID,
         typeKey = typeKey,
         typeSource = typeSource,
@@ -280,6 +286,12 @@ local function ResolveQuestTypeDetails(questID)
         isActive = isActive == true,
         isRepeatable = isRepeatable == true,
     }
+
+    if type(questTypeDetailsCache) == "table" then
+        questTypeDetailsCache[questID] = details
+    end
+
+    return details
 end
 
 local function ResolveQuestType(questID)
@@ -291,5 +303,23 @@ local function ResolveQuestType(questID)
     return details.typeKey, details.statusPrefix
 end
 
+local function InvalidateQuestTypeDetailsCache(questID)
+    if type(questTypeDetailsCache) == "table" then
+        if type(questID) == "number" and questID > 0 then
+            questTypeDetailsCache[questID] = nil
+        else
+            for cachedQuestID in pairs(questTypeDetailsCache) do
+                questTypeDetailsCache[cachedQuestID] = nil
+            end
+        end
+    end
+
+    if type(questID) ~= "number" or questID == _cachedQuestSubtypeQuestID then
+        _cachedQuestSubtypeQuestID = nil
+        _cachedQuestSubtypeResult = nil
+    end
+end
+
 M.ResolveQuestTypeDetails = ResolveQuestTypeDetails
 M.ResolveQuestType = ResolveQuestType
+M.InvalidateQuestTypeDetailsCache = InvalidateQuestTypeDetailsCache

@@ -11,6 +11,8 @@ local handleSkin = M.handleSkin
 local handleScale = M.handleScale
 local handleManualClear = M.handleManualClear
 local handleClearDistance = M.handleClearDistance
+local handleTrackRoute = M.handleTrackRoute
+local handleQuestClear = M.handleQuestClear
 local handleCompact = M.handleCompact
 local handleSearch = M.handleSearch
 local handleDiag = M.handleDiag
@@ -73,6 +75,10 @@ local function handleCommand(msg)
         handleManualClear(rest:lower())
     elseif cmd == "cleardistance" then
         handleClearDistance(rest)
+    elseif cmd == "trackroute" or cmd == "trackedroute" then
+        handleTrackRoute(rest:lower())
+    elseif cmd == "questclear" or cmd == "superquestclear" then
+        handleQuestClear(rest:lower())
     elseif cmd == "compact" or cmd == "guidechrome" or cmd == "guidehover" then
         handleCompact(rest:lower())
     elseif cmd == "search" then

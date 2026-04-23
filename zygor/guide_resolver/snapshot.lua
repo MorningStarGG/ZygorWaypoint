@@ -105,20 +105,21 @@ local function BuildSemanticInfo(semanticKind, semanticTravelType, semanticQuest
     }
 end
 
+local _contentSigParts = {}
+
 local function UpdateSnapshotContentSig(snapshot)
     if type(snapshot) ~= "table" then
         return
     end
 
-    snapshot.contentSig = table.concat({
-        tostring(snapshot.mirrorTitle or ""),
-        tostring(snapshot.pinpointSubtext or ""),
-        tostring(snapshot.clusterKind or ""),
-        tostring(snapshot.subtextReason or ""),
-        tostring(snapshot.semanticKind or ""),
-        tostring(snapshot.semanticTravelType or ""),
-        tostring(snapshot.semanticQuestID or ""),
-    }, "\031")
+    _contentSigParts[1] = tostring(snapshot.mirrorTitle or "")
+    _contentSigParts[2] = tostring(snapshot.pinpointSubtext or "")
+    _contentSigParts[3] = tostring(snapshot.clusterKind or "")
+    _contentSigParts[4] = tostring(snapshot.subtextReason or "")
+    _contentSigParts[5] = tostring(snapshot.semanticKind or "")
+    _contentSigParts[6] = tostring(snapshot.semanticTravelType or "")
+    _contentSigParts[7] = tostring(snapshot.semanticQuestID or "")
+    snapshot.contentSig = table.concat(_contentSigParts, "\031", 1, 7)
 end
 
 local function BuildSnapshot(rawArrowTitle, mirrorTitle, pinpointSubtext, clusterKind, subtextReason, headerFact, matchedLiveGoalNum, semanticInfo)
