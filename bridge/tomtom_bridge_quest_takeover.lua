@@ -9,6 +9,7 @@ local M = NS.Internal.Bridge
 state.bridgeQuestTakeover = state.bridgeQuestTakeover or {
     hooksInstalled = false,
     refreshSerial = 0,
+    adoptionRetrySerial = 0,
 }
 
 local takeover = state.bridgeQuestTakeover
@@ -25,6 +26,8 @@ local BLIZZARD_USER_WAYPOINT_STACK_MATCHES = {
     "blizzard_sharedmapdataproviders\\waypointlocationdataprovider.lua",
 }
 local QUEST_TAKEOVER_REFRESH_DELAY_SECONDS = 0.05
+local QUEST_TAKEOVER_ADOPTION_RETRY_DELAY_SECONDS = 0.05
+local QUEST_TAKEOVER_ADOPTION_RETRY_MAX_ATTEMPTS = 8
 local QUEST_TAKEOVER_SOURCE_SUPERTRACK = "supertrack"
 local QUEST_TAKEOVER_SOURCE_WATCH = "watch"
 
@@ -318,6 +321,19 @@ local function GetCurrentSuperTrackedQuestID()
     return NormalizeQuestID(C_SuperTrack.GetSuperTrackedQuestID())
 end
 
+local function IsQuestWatched(questID)
+    if type(C_QuestLog) ~= "table" or type(C_QuestLog.IsQuestWatched) ~= "function" then
+        return nil
+    end
+
+    local ok, watched = pcall(C_QuestLog.IsQuestWatched, questID)
+    if ok then
+        return watched == true
+    end
+
+    return nil
+end
+
 local function GetBlizzardUserWaypointSignature(destination)
     if type(destination) ~= "table" or destination.type ~= "manual" then
         return nil
@@ -366,21 +382,25 @@ local function BuildBlizzardUserWaypointMeta(mapID, x, y)
     }
 end
 
+local function CancelQuestAdoptionRetry()
+    takeover.adoptionRetrySerial = (takeover.adoptionRetrySerial or 0) + 1
+end
+
 local function AdoptQuestAsManual(questID, takeoverSource)
     local desiredQuestID = NormalizeQuestID(questID)
     if not desiredQuestID then
-        return false
+        return false, "invalid_quest"
     end
     if not (state.init and state.init.playerLoggedIn) then
-        return false
+        return false, "not_ready"
     end
     if type(NS.IsRoutingEnabled) ~= "function" or not NS.IsRoutingEnabled() then
-        return false
+        return false, "routing_disabled"
     end
 
     local destMapID, destX, destY, resolutionSource = ResolveQuestDestination(desiredQuestID)
     if not (type(destMapID) == "number" and type(destX) == "number" and type(destY) == "number") then
-        return false
+        return false, "unresolved"
     end
 
     local desiredSource = takeoverSource == QUEST_TAKEOVER_SOURCE_WATCH and QUEST_TAKEOVER_SOURCE_WATCH
@@ -394,7 +414,7 @@ local function AdoptQuestAsManual(questID, takeoverSource)
             and activeTitle == title
             and activeSource == desiredSource
         then
-            return false
+            return false, "already_current"
         end
     end
 
@@ -414,6 +434,69 @@ local function AdoptQuestAsManual(questID, takeoverSource)
         tostring(resolutionSource),
         tostring(desiredSource)
     )
+    return true, "routed"
+end
+
+local function ShouldRetryQuestAdoption(questID, takeoverSource)
+    local normalizedQuestID = NormalizeQuestID(questID)
+    if not normalizedQuestID then
+        return false
+    end
+    if not (state.init and state.init.playerLoggedIn) then
+        return false
+    end
+    if type(NS.IsRoutingEnabled) ~= "function" or not NS.IsRoutingEnabled() then
+        return false
+    end
+
+    if takeoverSource == QUEST_TAKEOVER_SOURCE_WATCH then
+        if not IsTrackedQuestAutoRouteEnabled() or not IsQuestStillActive(normalizedQuestID) then
+            return false
+        end
+
+        local watched = IsQuestWatched(normalizedQuestID)
+        if watched == false then
+            return false
+        end
+
+        return true
+    end
+
+    return GetCurrentSuperTrackedQuestID() == normalizedQuestID
+end
+
+local function ScheduleQuestAdoptionRetry(questID, takeoverSource, attempt)
+    local normalizedQuestID = NormalizeQuestID(questID)
+    local desiredSource = takeoverSource == QUEST_TAKEOVER_SOURCE_WATCH and QUEST_TAKEOVER_SOURCE_WATCH
+        or QUEST_TAKEOVER_SOURCE_SUPERTRACK
+    local nextAttempt = type(attempt) == "number" and attempt or 1
+
+    if nextAttempt > QUEST_TAKEOVER_ADOPTION_RETRY_MAX_ATTEMPTS then
+        return false
+    end
+    if not ShouldRetryQuestAdoption(normalizedQuestID, desiredSource) then
+        return false
+    end
+
+    takeover.adoptionRetrySerial = (takeover.adoptionRetrySerial or 0) + 1
+    local retrySerial = takeover.adoptionRetrySerial
+
+    NS.After(QUEST_TAKEOVER_ADOPTION_RETRY_DELAY_SECONDS, function()
+        if takeover.adoptionRetrySerial ~= retrySerial then
+            return
+        end
+        if not ShouldRetryQuestAdoption(normalizedQuestID, desiredSource) then
+            return
+        end
+
+        local adopted, reason = AdoptQuestAsManual(normalizedQuestID, desiredSource)
+        if adopted or reason ~= "unresolved" then
+            return
+        end
+
+        ScheduleQuestAdoptionRetry(normalizedQuestID, desiredSource, nextAttempt + 1)
+    end)
+
     return true
 end
 
@@ -490,9 +573,18 @@ end
 local function HandleSuperTrackedQuestIDChanged(questID)
     local normalizedQuestID = NormalizeQuestID(questID)
     if normalizedQuestID then
-        return AdoptQuestAsManual(normalizedQuestID, QUEST_TAKEOVER_SOURCE_SUPERTRACK)
+        local adopted, reason = AdoptQuestAsManual(normalizedQuestID, QUEST_TAKEOVER_SOURCE_SUPERTRACK)
+        if adopted then
+            CancelQuestAdoptionRetry()
+            return true
+        end
+        if reason == "unresolved" then
+            ScheduleQuestAdoptionRetry(normalizedQuestID, QUEST_TAKEOVER_SOURCE_SUPERTRACK)
+        end
+        return false
     end
 
+    CancelQuestAdoptionRetry()
     local _, _, activeSource = GetActiveQuestBackedManual()
     if activeSource == QUEST_TAKEOVER_SOURCE_SUPERTRACK then
         return ClearQuestBackedManual()
@@ -538,7 +630,15 @@ local function HandleQuestWatchAdded(questID)
         return false
     end
 
-    return AdoptQuestAsManual(normalizedQuestID, QUEST_TAKEOVER_SOURCE_WATCH)
+    local adopted, reason = AdoptQuestAsManual(normalizedQuestID, QUEST_TAKEOVER_SOURCE_WATCH)
+    if adopted then
+        CancelQuestAdoptionRetry()
+        return true
+    end
+    if reason == "unresolved" then
+        ScheduleQuestAdoptionRetry(normalizedQuestID, QUEST_TAKEOVER_SOURCE_WATCH)
+    end
+    return false
 end
 
 local function RefreshActiveQuestBackedManual(eventName, eventQuestID)
@@ -625,9 +725,18 @@ function NS.SyncSuperTrackedQuestToManual()
     local questID = GetCurrentSuperTrackedQuestID()
 
     if questID then
-        return AdoptQuestAsManual(questID, QUEST_TAKEOVER_SOURCE_SUPERTRACK)
+        local adopted, reason = AdoptQuestAsManual(questID, QUEST_TAKEOVER_SOURCE_SUPERTRACK)
+        if adopted then
+            CancelQuestAdoptionRetry()
+            return true
+        end
+        if reason == "unresolved" then
+            ScheduleQuestAdoptionRetry(questID, QUEST_TAKEOVER_SOURCE_SUPERTRACK)
+        end
+        return false
     end
 
+    CancelQuestAdoptionRetry()
     local _, _, activeSource = GetActiveQuestBackedManual()
     if activeSource == QUEST_TAKEOVER_SOURCE_SUPERTRACK then
         return ClearQuestBackedManual()

@@ -2,6 +2,18 @@ local NS = _G.ZygorWaypointNS
 
 NS.CHANGELOG_DATA = {
     {
+        version = "3.1b",
+        sections = {
+            { title = "Quest takeover reliability", entries = {
+                "Quest takeover destinations that are initially unresolved now retry, fixing cases where quest data wasn't ready at the moment of supertracking or watch.",
+                "Pending adoption retries are cancelled immediately when the supertracked quest changes, is cleared, or the watch is removed, preventing stale routes from firing.",
+            }},
+            { title = "World overlay fixes", entries = {
+                "World overlay is now suppressed on maps that do not support user waypoints via C_Map.CanSetUserWaypointOnMap. TomTom and Zygor navigation continue working normally on those maps when supported.",
+            }},
+        },
+    },
+    {
         version = "3.1",
         sections = {
             { title = "Blizzard supertracking and supertracked quest routing", entries = {

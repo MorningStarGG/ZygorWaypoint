@@ -68,6 +68,13 @@ local function ApplyCurrentTarget()
         return
     end
 
+    if type(C_Map) == "table" and type(C_Map.CanSetUserWaypointOnMap) == "function"
+        and not C_Map.CanSetUserWaypointOnMap(overlay.mapID)
+    then
+        ClearNativeBackend()
+        return
+    end
+
     if backend == C.WORLD_OVERLAY_BACKEND_NATIVE then
         NS.InitializeNativeWorldOverlay()
         NS.SyncNativeWorldOverlay(

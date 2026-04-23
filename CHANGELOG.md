@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.1b
+
+- **Quest takeover reliability**
+  - Quest takeover destinations that are initially unresolved now retry, fixing cases where quest data wasn't ready at the moment of supertracking or watch.
+  - Pending adoption retries are cancelled immediately when the supertracked quest changes, is cleared, or the watch is removed, preventing stale routes from firing.
+
+- **World overlay fixes**
+  - World overlay is now suppressed on maps that do not support user waypoints via C_Map.CanSetUserWaypointOnMap. TomTom and Zygor navigation continue working normally on those maps when supported.
+
 ## 3.1
 
 - **Blizzard supertracking and supertracked quest routing**

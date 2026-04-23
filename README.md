@@ -2,7 +2,7 @@
 
 > A navigation bridge and 3D world overlay for **Zygor Guides Viewer** and **TomTom** — using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-3.1-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
+![Version](https://img.shields.io/badge/version-3.1b-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -459,6 +459,15 @@ Important changes:
 ------------------------------------------------------------------------
 
 # Changelog
+
+## 3.1b
+
+- **Quest takeover reliability**
+  - Quest takeover destinations that are initially unresolved now retry, fixing cases where quest data wasn't ready at the moment of supertracking or watch.
+  - Pending adoption retries are cancelled immediately when the supertracked quest changes, is cleared, or the watch is removed, preventing stale routes from firing.
+
+- **World overlay fixes**
+  - World overlay is now suppressed on maps that do not support user waypoints via C_Map.CanSetUserWaypointOnMap. TomTom and Zygor navigation continue working normally on those maps when supported.
 
 ## 3.1
 

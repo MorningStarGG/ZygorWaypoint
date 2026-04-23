@@ -2,7 +2,7 @@
 ## Title: ZygorWaypoint
 ## Notes: Navigation bridge and 3D world overlay for Zygor Guides and TomTom.
 ## Author: MorningStarGG
-## Version: 3.1
+## Version: 3.1b
 ## IconTexture: Interface\AddOns\ZygorWaypoint\media\icon.png
 ## SavedVariables: ZygorWaypointDB
 ## SavedVariablesPerCharacter: ZygorWaypointCharDB
