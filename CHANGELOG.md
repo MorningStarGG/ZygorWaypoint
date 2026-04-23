@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.1c
+
+- **`Auto-Route Tracked Quests` setting fixes**
+  - Auto-routing from quest tracking/watching is fully suppressed while the Zygor guide is visible, regardless of the Auto-Route setting. This setting is now ONLY for when the Zygor Guide Viewer is hidden.
+  - Explicitly clicking a quest POI button routes and tracks the quest even when the guide is visible, since that is a deliberate navigation action and is considered a manual waypoint.
+  - Explicitly-clicked quest destinations/POIs continue to receive destination/progress updates even while the guide is visible.
+  - When the guide is hidden, auto-tracking works normally per the Auto-Route setting.
+
 ## 3.1b
 
 - **Quest takeover reliability**

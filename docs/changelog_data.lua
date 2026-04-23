@@ -2,6 +2,17 @@ local NS = _G.ZygorWaypointNS
 
 NS.CHANGELOG_DATA = {
     {
+        version = "3.1c",
+        sections = {
+            { title = "`Auto-Route Tracked Quests` setting fixes", entries = {
+                "Auto-routing from quest tracking/watching is fully suppressed while the Zygor guide is visible, regardless of the Auto-Route setting.",
+                "Explicitly clicking a quest POI button routes and tracks the quest even when the guide is visible, since that is a deliberate navigation action.",
+                "Explicitly-clicked quest destinations continue to receive destination/progress updates while the guide is visible.",
+                "When the guide is hidden, auto-tracking works normally per the Auto-Route setting.",
+            }},
+        },
+    },
+    {
         version = "3.1b",
         sections = {
             { title = "Quest takeover reliability", entries = {

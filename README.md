@@ -2,7 +2,7 @@
 
 > A navigation bridge and 3D world overlay for **Zygor Guides Viewer** and **TomTom** — using **TomTom's Crazy Arrow for navigation** while **Zygor handles travel routing and pathfinding**.
 
-![Version](https://img.shields.io/badge/version-3.1b-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
+![Version](https://img.shields.io/badge/version-3.1c-blue) ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange) ![Requires](https://img.shields.io/badge/Requires-Zygor%20Guides%20and%20TomTom-red)
 
 
 ------------------------------------------------------------------------
@@ -459,6 +459,14 @@ Important changes:
 ------------------------------------------------------------------------
 
 # Changelog
+
+## 3.1c
+
+- **`Auto-Route Tracked Quests` setting fixes**
+  - Auto-routing from quest tracking/watching is fully suppressed while the Zygor guide is visible, regardless of the Auto-Route setting.
+  - Explicitly clicking a quest POI button routes and tracks the quest even when the guide is visible, since that is a deliberate navigation action and is considered a manual waypoint.
+  - Explicitly-clicked quest destinations continue to receive destination/progress updates while the guide is visible.
+  - When the guide is hidden, auto-tracking works normally per the Auto-Route setting.
 
 ## 3.1b
 

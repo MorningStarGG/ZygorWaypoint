@@ -25,6 +25,9 @@ local BLIZZARD_USER_WAYPOINT_STACK_COUNT = 12
 local BLIZZARD_USER_WAYPOINT_STACK_MATCHES = {
     "blizzard_sharedmapdataproviders\\waypointlocationdataprovider.lua",
 }
+local EXPLICIT_USER_SUPERTRACK_STACK_MATCHES = {
+    "blizzard_poibutton\\poibutton.lua",
+}
 local QUEST_TAKEOVER_REFRESH_DELAY_SECONDS = 0.05
 local QUEST_TAKEOVER_ADOPTION_RETRY_DELAY_SECONDS = 0.05
 local QUEST_TAKEOVER_ADOPTION_RETRY_MAX_ATTEMPTS = 8
@@ -71,6 +74,10 @@ end
 
 local function IsExplicitBlizzardUserWaypointCall()
     return DoesStackMatchAnyPattern(GetNormalizedDebugStack(), BLIZZARD_USER_WAYPOINT_STACK_MATCHES)
+end
+
+local function IsExplicitUserSupertrack()
+    return DoesStackMatchAnyPattern(GetNormalizedDebugStack(), EXPLICIT_USER_SUPERTRACK_STACK_MATCHES)
 end
 
 local function GetWaypointSignature(mapID, x, y)
@@ -360,7 +367,7 @@ local function GetActiveBlizzardUserWaypointManual()
     return destination, sig
 end
 
-local function BuildQuestTakeoverMeta(questID, destMapID, destX, destY, takeoverSource)
+local function BuildQuestTakeoverMeta(questID, destMapID, destX, destY, takeoverSource, explicit)
     return {
         zwpBlizzardQuestSupertrack = true,
         zwpQuestID = questID,
@@ -369,6 +376,7 @@ local function BuildQuestTakeoverMeta(questID, destMapID, destX, destY, takeover
         zwpQuestDestY = destY,
         zwpQuestTakeoverSource = takeoverSource == QUEST_TAKEOVER_SOURCE_WATCH and QUEST_TAKEOVER_SOURCE_WATCH
             or QUEST_TAKEOVER_SOURCE_SUPERTRACK,
+        zwpExplicitAdoption = explicit == true or nil,
     }
 end
 
@@ -386,7 +394,7 @@ local function CancelQuestAdoptionRetry()
     takeover.adoptionRetrySerial = (takeover.adoptionRetrySerial or 0) + 1
 end
 
-local function AdoptQuestAsManual(questID, takeoverSource)
+local function AdoptQuestAsManual(questID, takeoverSource, explicit)
     local desiredQuestID = NormalizeQuestID(questID)
     if not desiredQuestID then
         return false, "invalid_quest"
@@ -405,14 +413,17 @@ local function AdoptQuestAsManual(questID, takeoverSource)
 
     local desiredSource = takeoverSource == QUEST_TAKEOVER_SOURCE_WATCH and QUEST_TAKEOVER_SOURCE_WATCH
         or QUEST_TAKEOVER_SOURCE_SUPERTRACK
+    local isExplicit = explicit == true
     local title = ResolveQuestTitle(desiredQuestID)
     local destination, activeQuestID, activeSource = GetActiveQuestBackedManual()
     if activeQuestID == desiredQuestID then
         local activeMapID, activeX, activeY = ReadWaypointCoords(destination)
         local activeTitle = type(destination) == "table" and destination.title or nil
+        local activeExplicit = type(destination) == "table" and destination.zwpExplicitAdoption == true or false
         if GetWaypointSignature(activeMapID, activeX, activeY) == GetWaypointSignature(destMapID, destX, destY)
             and activeTitle == title
             and activeSource == desiredSource
+            and activeExplicit == isExplicit
         then
             return false, "already_current"
         end
@@ -423,7 +434,7 @@ local function AdoptQuestAsManual(questID, takeoverSource)
         destX,
         destY,
         title,
-        BuildQuestTakeoverMeta(desiredQuestID, destMapID, destX, destY, desiredSource)
+        BuildQuestTakeoverMeta(desiredQuestID, destMapID, destX, destY, desiredSource, isExplicit)
     )
     NS.Log(
         "Quest takeover route",
@@ -465,11 +476,12 @@ local function ShouldRetryQuestAdoption(questID, takeoverSource)
     return GetCurrentSuperTrackedQuestID() == normalizedQuestID
 end
 
-local function ScheduleQuestAdoptionRetry(questID, takeoverSource, attempt)
+local function ScheduleQuestAdoptionRetry(questID, takeoverSource, attempt, explicit)
     local normalizedQuestID = NormalizeQuestID(questID)
     local desiredSource = takeoverSource == QUEST_TAKEOVER_SOURCE_WATCH and QUEST_TAKEOVER_SOURCE_WATCH
         or QUEST_TAKEOVER_SOURCE_SUPERTRACK
     local nextAttempt = type(attempt) == "number" and attempt or 1
+    local isExplicit = explicit == true
 
     if nextAttempt > QUEST_TAKEOVER_ADOPTION_RETRY_MAX_ATTEMPTS then
         return false
@@ -489,12 +501,12 @@ local function ScheduleQuestAdoptionRetry(questID, takeoverSource, attempt)
             return
         end
 
-        local adopted, reason = AdoptQuestAsManual(normalizedQuestID, desiredSource)
+        local adopted, reason = AdoptQuestAsManual(normalizedQuestID, desiredSource, isExplicit)
         if adopted or reason ~= "unresolved" then
             return
         end
 
-        ScheduleQuestAdoptionRetry(normalizedQuestID, desiredSource, nextAttempt + 1)
+        ScheduleQuestAdoptionRetry(normalizedQuestID, desiredSource, nextAttempt + 1, isExplicit)
     end)
 
     return true
@@ -571,15 +583,18 @@ local function ClearBlizzardUserWaypointBackedManual(clearReason)
 end
 
 local function HandleSuperTrackedQuestIDChanged(questID)
+    local explicit = IsExplicitUserSupertrack()
+    if not explicit and not IsTrackedQuestAutoRouteEnabled() then return false end
     local normalizedQuestID = NormalizeQuestID(questID)
     if normalizedQuestID then
-        local adopted, reason = AdoptQuestAsManual(normalizedQuestID, QUEST_TAKEOVER_SOURCE_SUPERTRACK)
+        if not explicit and GetGuideVisibilityState and GetGuideVisibilityState() == "visible" then return false end
+        local adopted, reason = AdoptQuestAsManual(normalizedQuestID, QUEST_TAKEOVER_SOURCE_SUPERTRACK, explicit)
         if adopted then
             CancelQuestAdoptionRetry()
             return true
         end
         if reason == "unresolved" then
-            ScheduleQuestAdoptionRetry(normalizedQuestID, QUEST_TAKEOVER_SOURCE_SUPERTRACK)
+            ScheduleQuestAdoptionRetry(normalizedQuestID, QUEST_TAKEOVER_SOURCE_SUPERTRACK, nil, explicit)
         end
         return false
     end
@@ -629,7 +644,7 @@ local function HandleQuestWatchAdded(questID)
     if not IsQuestStillActive(normalizedQuestID) then
         return false
     end
-
+    if GetGuideVisibilityState and GetGuideVisibilityState() == "visible" then return false end
     local adopted, reason = AdoptQuestAsManual(normalizedQuestID, QUEST_TAKEOVER_SOURCE_WATCH)
     if adopted then
         CancelQuestAdoptionRetry()
@@ -642,7 +657,7 @@ local function HandleQuestWatchAdded(questID)
 end
 
 local function RefreshActiveQuestBackedManual(eventName, eventQuestID)
-    local _, activeQuestID, activeSource = GetActiveQuestBackedManual()
+    local destination, activeQuestID, activeSource = GetActiveQuestBackedManual()
     if not activeQuestID then
         return false
     end
@@ -664,7 +679,11 @@ local function RefreshActiveQuestBackedManual(eventName, eventQuestID)
         return ClearQuestBackedManualForReason("quest_unresolved")
     end
 
-    return AdoptQuestAsManual(activeQuestID, activeSource)
+    local isExplicit = type(destination) == "table" and destination.zwpExplicitAdoption == true
+    if not isExplicit and GetGuideVisibilityState and GetGuideVisibilityState() == "visible" then
+        return false
+    end
+    return AdoptQuestAsManual(activeQuestID, activeSource, isExplicit)
 end
 
 local function ScheduleActiveQuestBackedManualRefresh(eventName, eventQuestID)
@@ -722,6 +741,8 @@ function NS.HandleRemovedBlizzardQuestDestination(destination, clearReason)
 end
 
 function NS.SyncSuperTrackedQuestToManual()
+    if not IsTrackedQuestAutoRouteEnabled() then return false end
+    if GetGuideVisibilityState and GetGuideVisibilityState() == "visible" then return false end
     local questID = GetCurrentSuperTrackedQuestID()
 
     if questID then

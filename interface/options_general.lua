@@ -140,7 +140,7 @@ function M.AddGeneralOptions(category)
         "TRACKED_QUEST_AUTO_ROUTE",
         "Auto-Route Tracked Quests",
         DEFAULTS.trackedQuestAutoRoute,
-        "When enabled, tracking a quest will set the quest as your current waypoint.",
+        "When enabled and Zygor Guides Viewer is hidden, tracking a quest will set the quest as your current waypoint.",
         function()
             return NS.IsTrackedQuestAutoRouteEnabled()
         end,
