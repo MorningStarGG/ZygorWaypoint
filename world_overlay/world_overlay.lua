@@ -1,8 +1,8 @@
-local NS = _G.ZygorWaypointNS
+local NS = _G.AzerothWaypointNS
 local C = NS.Constants
 local state = NS.State
 
----@class ZWPWorldOverlayState
+---@class AWPWorldOverlayState
 ---@field backend string
 ---@field uid table|nil
 ---@field mapID number|nil
@@ -31,6 +31,19 @@ state.worldOverlay = state.worldOverlay or {
 
 local overlay = state.worldOverlay
 
+local function StartChurnPhase()
+    if type(NS.ChurnPhaseStart) ~= "function" then
+        return nil
+    end
+    return NS.ChurnPhaseStart()
+end
+
+local function EndChurnPhase(key, startedKB)
+    if type(NS.ChurnPhaseEnd) == "function" then
+        NS.ChurnPhaseEnd(key, startedKB)
+    end
+end
+
 -- ============================================================
 -- Internal helpers
 -- ============================================================
@@ -48,6 +61,7 @@ local function ClearNativeBackend()
 end
 
 local function ApplyCurrentTarget()
+    local phase = StartChurnPhase()
     local backend = ResolveBackend()
     if overlay.backend ~= backend then
         if overlay.backend == C.WORLD_OVERLAY_BACKEND_NATIVE then
@@ -58,6 +72,7 @@ local function ApplyCurrentTarget()
 
     if backend == C.WORLD_OVERLAY_BACKEND_NONE then
         ClearNativeBackend()
+        EndChurnPhase("phaseWorldOverlayKB", phase)
         return
     end
 
@@ -65,6 +80,7 @@ local function ApplyCurrentTarget()
         if backend == C.WORLD_OVERLAY_BACKEND_NATIVE then
             ClearNativeBackend()
         end
+        EndChurnPhase("phaseWorldOverlayKB", phase)
         return
     end
 
@@ -72,6 +88,22 @@ local function ApplyCurrentTarget()
         and not C_Map.CanSetUserWaypointOnMap(overlay.mapID)
     then
         ClearNativeBackend()
+        EndChurnPhase("phaseWorldOverlayKB", phase)
+        return
+    end
+
+    -- Continent/world/cosmic maps are too coarse for interior locations.
+    -- Farstrider can supply continent-level mapIDs (e.g. Eastern Kingdoms = 13)
+    -- for indoor destinations like the Wizard's Sanctum; those coordinates have
+    -- nav geometry outdoors but the destination is inside, so the overlay fires
+    -- incorrectly. Suppress it whenever the leg map is continent-or-higher AND
+    -- the player is currently indoors.
+    if type(NS.IsMapContinentOrHigher) == "function"
+        and NS.IsMapContinentOrHigher(overlay.mapID)
+        and type(IsIndoors) == "function" and IsIndoors()
+    then
+        ClearNativeBackend()
+        EndChurnPhase("phaseWorldOverlayKB", phase)
         return
     end
 
@@ -88,6 +120,7 @@ local function ApplyCurrentTarget()
             overlay.contentSnapshot
         )
     end
+    EndChurnPhase("phaseWorldOverlayKB", phase)
 end
 
 -- ============================================================

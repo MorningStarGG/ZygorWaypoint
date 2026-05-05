@@ -1,0 +1,105 @@
+## Interface: 120005
+## Title: AzerothWaypoint
+## Notes: A TomTom-powered navigation bridge, route planner selector, manual waypoint queue, and 3D world overlay for World of Warcraft
+## Author: MorningStarGG
+## Version: 4.0.0
+## IconTexture: Interface\AddOns\AzerothWaypoint\media\icon.png
+## SavedVariables: AzerothWaypointDB
+## SavedVariablesPerCharacter: AzerothWaypointCharDB
+## RequiredDeps: TomTom
+## OptionalDeps: ZygorGuidesViewer, APR, WoWPro, Mapzeroth, FarstriderLib, FarstriderLibData, WorldQuestTab
+
+core/addon.lua
+core/core.lua
+core/util.lua
+core/quest_text.lua
+core/db.lua
+core/arrowskins.lua
+integrations/external_waypoint_sources.lua
+integrations/silverdragon.lua
+integrations/rarescanner.lua
+integrations/guides/zygor/canonical_target.lua
+integrations/guides/zygor/source.lua
+integrations/guides/zygor/guide_resolver/facts.lua
+integrations/guides/zygor/guide_resolver/live_context.lua
+integrations/guides/zygor/guide_resolver/scan.lua
+integrations/guides/zygor/guide_resolver/presentation_context.lua
+integrations/guides/zygor/guide_resolver/snapshot.lua
+integrations/guides/zygor/guide_resolver/resolve.lua
+integrations/guides/zygor/guide_resolver/cases.lua
+integrations/guides/zygor/guide_resolver.lua
+integrations/guides/zygor/arrow_themes.lua
+integrations/guides/zygor/viewer_chrome.lua
+world_overlay/core/state.lua
+world_overlay/core/config.lua
+world_overlay/assets/icons.lua
+world_overlay/pinpoint/pinpoint_plaques.lua
+world_overlay/pinpoint/plaque_animation.lua
+world_overlay/presentation/colors.lua
+world_overlay/assets/quest_type.lua
+world_overlay/presentation/content.lua
+world_overlay/runtime/frames.lua
+world_overlay/runtime/host.lua
+world_overlay/runtime/render.lua
+world_overlay/core/api.lua
+world_overlay/world_overlay.lua
+bridge/routing/special_actions.lua
+bridge/routing/identity.lua
+bridge/routing/authority.lua
+bridge/routing/queues/state.lua
+bridge/routing/queues/items.lua
+bridge/routing/queues/routing.lua
+bridge/routing/queues/projection.lua
+bridge/routing/queues/snapshot.lua
+bridge/routing/queues/policy.lua
+bridge/routing/carrier_tomtom.lua
+bridge/routing/presentation.lua
+bridge/routing/guide.lua
+integrations/guides/zygor/zygor_provider.lua
+integrations/guides/apr/apr_presentation.lua
+integrations/guides/apr/apr_provider.lua
+integrations/guides/wowpro/wowpro_presentation.lua
+integrations/guides/wowpro/wowpro_provider.lua
+bridge/routing/shared.lua
+bridge/routing/backends/direct.lua
+bridge/routing/backends/zygor.lua
+bridge/routing/backends/mapzeroth.lua
+bridge/routing/backends/farstrider.lua
+bridge/routing/core.lua
+bridge/takeovers/tomtom_bridge_blizzard_core.lua
+bridge/takeovers/tomtom_bridge_areapoi_takeover.lua
+bridge/takeovers/tomtom_bridge_vignette_takeover.lua
+bridge/takeovers/tomtom_bridge_taxi_takeover.lua
+bridge/takeovers/tomtom_bridge_userwaypoint_takeover.lua
+bridge/takeovers/tomtom_bridge_quest_takeover.lua
+bridge/takeovers/tomtom_bridge_digsite_takeover.lua
+bridge/takeovers/tomtom_bridge_housingplot_takeover.lua
+bridge/takeovers/tomtom_bridge_gossipoi_takeover.lua
+integrations/guides/zygor/zygor_poi.lua
+integrations/worldquesttab_takeover.lua
+docs/changelog_data.lua
+docs/changelog_format.lua
+docs/help_pages.lua
+interface/panel_framework.lua
+interface/help_frame.lua
+interface/ui_style.lua
+interface/manual_queue_prompt.lua
+interface/queue/state.lua
+interface/queue/model.lua
+interface/queue/widgets.lua
+interface/queue/actions.lua
+interface/queue/list_view.lua
+interface/queue/detail_view.lua
+interface/queue/panel.lua
+interface/options/shared.lua
+interface/options/canvas_data.lua
+interface/options/canvas_dropdown.lua
+interface/options/canvas_widgets.lua
+interface/options/canvas.lua
+interface/options/canvas_sections.lua
+interface/options/panel.lua
+interface/commands_settings.lua
+interface/commands_search.lua
+interface/commands_diagnostics.lua
+interface/commands_dispatch.lua
+core/init.lua

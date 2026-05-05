@@ -1,4 +1,4 @@
-local NS = _G.ZygorWaypointNS
+local NS = _G.AzerothWaypointNS
 local C = NS.Constants
 local state = NS.State
 
@@ -12,61 +12,31 @@ local function CopyOverlayColor(color)
 end
 
 local DEFAULT_OVERLAY_CUSTOM_COLOR = CopyOverlayColor(C.WORLD_OVERLAY_COLOR_PRESETS[C.WORLD_OVERLAY_COLOR_GOLD])
-local LEGACY_2X_SAVED_VARIABLE_CLEANUP_VERSION = 1
-local LEGACY_2X_OBSOLETE_DB_KEYS = {
-    "auto",
-    "autoPureTomTomWhenGuideHidden",
-    "autoTomTomTextWhenGuideHidden",
-    -- Replaced by ZygorWaypointCharDB after character-only state moved out
-    -- of the global SavedVariables table.
-    "characters",
-    "disableWhenGuideHidden",
-    "hiddenTomTomOnlyWhenGuideHidden",
-    "pauseGuideWhenHidden",
-    "pureTomTomWhenGuideHidden",
-    "pureTomTomWhenHidden",
-    "sync",
-    "threeDWaypointEnabled",
-    "threeDWaypointHideDistance",
-    "threeDWaypointNavigator",
-    "threeDWaypointPinpointDistance",
-    "threeDWaypointScale",
-    "threeDWaypointShowDistance",
-    "threeDWaypointShowTitle",
-    "tomtomOverride",
-    "tomtomRegularScale",
-    "tomtomScaleOverridden",
-    "waypointUIHideDistance",
-    "waypointUIOverride",
-    "worldOverlayAdditionalInfo",
-    "worldOverlayBeamColorMode",
-    "worldOverlayBeamCustomColor",
-    "worldOverlayBeamOpacity",
-    "worldOverlayBeamStyle",
-    "worldOverlayPinpointTextColorMode",
-    "worldOverlayPinpointTextCustomColor",
-    "worldOverlayShowBeam",
-    "worldOverlayShowContextDiamond",
-    "worldOverlayShowInfoText",
-    "worldOverlayShowWhenUIHidden",
-}
 
 -- ============================================================
 -- Schema
 -- ============================================================
 
 local DB_DEFAULTS = {
-    arrowAlignment = true,
-    zygorRouting = true,
-    tomtomSkin = C.SKIN_STARLIGHT,
-    tomtomArrowScale = C.SCALE_DEFAULT,
     guideStepsOnlyHover = false,
     guideStepBackgroundsHover = C.GUIDE_STEP_BACKGROUND_MODE_NONE,
     manualWaypointAutoClear = false,
     manualWaypointClearDistance = C.MANUAL_CLEAR_DISTANCE_DEFAULT,
     trackedQuestAutoRoute = false,
+    untrackedQuestAutoClear = false,
     superTrackedQuestAutoClear = false,
-    manualQueueAutoRouting = false,
+    genericAddonBlizzardTakeoverEnabled = true,
+    manualClickQueueMode = "replace",
+
+    routingEnabled           = true,
+    routingBackend           = "direct",  -- first-run auto-selects zygor | farstrider | mapzeroth | direct
+    resumeManualRoute        = true,
+    arrowSkin                = C.SKIN_STARLIGHT,
+    arrowScale               = C.SCALE_DEFAULT,
+    specialTravelDisplayMode = "replace_arrow",  -- "replace_arrow" | "companion_icon"
+    specialTravelButtonScale = C.SCALE_DEFAULT,
+    -- manualAuthority is the persisted authority record; nil by default
+    -- and only set when there is an active manual route to resume.
 }
 
 local OVERLAY_SETTING_DEFS = {
@@ -77,17 +47,19 @@ local OVERLAY_SETTING_DEFS = {
         kind = "string",
         values = C.WORLD_OVERLAY_CONTEXT_DISPLAY_MODES,
     },
-    worldOverlayPinpointDistance = { default = 50, kind = "number", min = 25, max = 500, step = 5 },
-    worldOverlayHideDistance = { default = 5, kind = "number", min = 0, max = 100, step = 1 },
+    worldOverlayPinpointDistance = { default = 35, kind = "number", min = 25, max = 500, step = 5 },
+    worldOverlayHideDistance = { default = 0, kind = "number", min = 0, max = 500, step = 5 },
     worldOverlayUseMeters = { default = false, kind = "boolean" },
     worldOverlayWaypointMode = { default = C.WORLD_OVERLAY_WAYPOINT_MODE_FULL, kind = "string", values = C.WORLD_OVERLAY_WAYPOINT_MODES },
     worldOverlayWaypointSize = { default = 1, kind = "number", min = 0.5, max = 5, step = 0.1 },
-    worldOverlayWaypointSizeMin = { default = 0.25, kind = "number", min = 0.125, max = 1, step = 0.125 },
+    worldOverlayWaypointSizeMin = { default = 0.75, kind = "number", min = 0.125, max = 1, step = 0.125 },
     worldOverlayWaypointSizeMax = { default = 1, kind = "number", min = 1, max = 2, step = 0.1 },
     worldOverlayWaypointOpacity = { default = 1, kind = "number", min = 0.1, max = 1, step = 0.1 },
-    worldOverlayWaypointOffsetY = { default = -50, kind = "number", min = -200, max = 200, step = 5 },
-    worldOverlayBeaconStyle = { default = C.WORLD_OVERLAY_BEACON_STYLE_BEACON, kind = "string", values = C.WORLD_OVERLAY_BEACON_STYLES },
+    worldOverlayWaypointOffsetY = { default = -25, kind = "number", min = -200, max = 200, step = 5 },
+    worldOverlayBeaconStyle = { default = C.WORLD_OVERLAY_BEACON_STYLE_DISTANCE, kind = "string", values = C.WORLD_OVERLAY_BEACON_STYLES },
+    worldOverlayBeaconBaseDistance = { default = 75, kind = "number", min = 5, max = 500, step = 5 },
     worldOverlayBeaconOpacity = { default = 1, kind = "number", min = 0.1, max = 1, step = 0.1 },
+    worldOverlayBeaconBaseOffsetY = { default = 25, kind = "number", min = -200, max = 200, step = 5 },
     worldOverlayInfoTextSize = { default = 1, kind = "number", min = 0.1, max = 2, step = 0.1 },
     worldOverlayInfoTextOpacity = { default = 1, kind = "number", min = 0, max = 1, step = 0.1 },
     worldOverlaySubtextOpacity = { default = 0.7, kind = "number", min = 0, max = 1, step = 0.1 },
@@ -112,7 +84,7 @@ local OVERLAY_SETTING_DEFS = {
     worldOverlayPinpointOpacity = { default = 1, kind = "number", min = 0.1, max = 1, step = 0.1 },
     worldOverlayPinpointAnimatePlaqueEffects = { default = true, kind = "boolean" },
     worldOverlayPinpointAutoVerticalAdjust = { default = true, kind = "boolean" },
-    worldOverlayPinpointManualVerticalGap = { default = 200, kind = "number", min = 75, max = 300, step = 1 },
+    worldOverlayPinpointManualVerticalGap = { default = 75, kind = "number", min = 75, max = 800, step = 1 },
     worldOverlayShowDestinationInfo = { default = true, kind = "boolean" },
     worldOverlayShowExtendedInfo = { default = true, kind = "boolean" },
     worldOverlayShowCoordinateFallback = { default = true, kind = "boolean" },
@@ -122,25 +94,25 @@ local OVERLAY_SETTING_DEFS = {
     worldOverlayNavigatorOpacity = { default = 1, kind = "number", min = 0.1, max = 1, step = 0.1 },
     worldOverlayNavigatorDistance = { default = 1, kind = "number", min = 0.1, max = 3, step = 0.1 },
     worldOverlayNavigatorDynamicDistance = { default = true, kind = "boolean" },
-    worldOverlayWaypointTextColorMode = { default = C.WORLD_OVERLAY_COLOR_DEFAULT, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
+    worldOverlayWaypointTextColorMode = { default = C.WORLD_OVERLAY_COLOR_GRAY, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
     worldOverlayWaypointTextCustomColor = { default = DEFAULT_OVERLAY_CUSTOM_COLOR, kind = "color" },
-    worldOverlayPinpointTitleColorMode = { default = C.WORLD_OVERLAY_COLOR_DEFAULT, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
+    worldOverlayPinpointTitleColorMode = { default = C.WORLD_OVERLAY_COLOR_AUTO, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
     worldOverlayPinpointTitleCustomColor = { default = DEFAULT_OVERLAY_CUSTOM_COLOR, kind = "color" },
-    worldOverlayPinpointSubtextColorMode = { default = C.WORLD_OVERLAY_COLOR_DEFAULT, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
+    worldOverlayPinpointSubtextColorMode = { default = C.WORLD_OVERLAY_COLOR_AUTO, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
     worldOverlayPinpointSubtextCustomColor = { default = DEFAULT_OVERLAY_CUSTOM_COLOR, kind = "color" },
-    worldOverlayBeaconColorMode = { default = C.WORLD_OVERLAY_COLOR_DEFAULT, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
+    worldOverlayBeaconColorMode = { default = C.WORLD_OVERLAY_COLOR_AUTO, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
     worldOverlayBeaconCustomColor = { default = DEFAULT_OVERLAY_CUSTOM_COLOR, kind = "color" },
-    worldOverlayContextDiamondColorMode = { default = C.WORLD_OVERLAY_COLOR_DEFAULT, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
+    worldOverlayContextDiamondColorMode = { default = C.WORLD_OVERLAY_COLOR_AUTO, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
     worldOverlayContextDiamondCustomColor = { default = DEFAULT_OVERLAY_CUSTOM_COLOR, kind = "color" },
-    worldOverlayIconColorMode = { default = C.WORLD_OVERLAY_COLOR_DEFAULT, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
+    worldOverlayIconColorMode = { default = C.WORLD_OVERLAY_COLOR_AUTO, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
     worldOverlayIconCustomColor = { default = DEFAULT_OVERLAY_CUSTOM_COLOR, kind = "color" },
-    worldOverlayArrowColorMode = { default = C.WORLD_OVERLAY_COLOR_DEFAULT, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
+    worldOverlayArrowColorMode = { default = C.WORLD_OVERLAY_COLOR_AUTO, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
     worldOverlayArrowCustomColor = { default = DEFAULT_OVERLAY_CUSTOM_COLOR, kind = "color" },
-    worldOverlayNavArrowColorMode = { default = C.WORLD_OVERLAY_COLOR_DEFAULT, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
+    worldOverlayNavArrowColorMode = { default = C.WORLD_OVERLAY_COLOR_AUTO, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
     worldOverlayNavArrowCustomColor = { default = DEFAULT_OVERLAY_CUSTOM_COLOR, kind = "color" },
-    worldOverlayPlaqueColorMode = { default = C.WORLD_OVERLAY_COLOR_DEFAULT, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
+    worldOverlayPlaqueColorMode = { default = C.WORLD_OVERLAY_COLOR_AUTO, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
     worldOverlayPlaqueCustomColor = { default = DEFAULT_OVERLAY_CUSTOM_COLOR, kind = "color" },
-    worldOverlayAnimatedColorMode = { default = C.WORLD_OVERLAY_COLOR_DEFAULT, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
+    worldOverlayAnimatedColorMode = { default = C.WORLD_OVERLAY_COLOR_AUTO, kind = "string", values = C.WORLD_OVERLAY_COLOR_MODES },
     worldOverlayAnimatedCustomColor = { default = DEFAULT_OVERLAY_CUSTOM_COLOR, kind = "color" },
 }
 
@@ -151,22 +123,99 @@ NS.Internal.OverlaySettingDefs = OVERLAY_SETTING_DEFS
 state.db = state.db or {
     initCaptured = false,
     hadExistingData = false,
-    previousAddonVersion = nil,
 }
 
 local dbState = state.db
+
+local ROUTING_BACKEND_DEFAULT_PRIORITY = {
+    {
+        id = "zygor",
+        addons = { "ZygorGuidesViewer" },
+    },
+    {
+        id = "farstrider",
+        addons = { "FarstriderLib", "FarstriderLibData" },
+    },
+    {
+        id = "mapzeroth",
+        addons = { "Mapzeroth" },
+    },
+    {
+        id = "direct",
+    },
+}
+
+local VALID_ROUTING_BACKENDS = {
+    zygor = true,
+    mapzeroth = true,
+    farstrider = true,
+    direct = true,
+}
+
+local function IsAddonEnabledForInitialRoutingDefault(addonName)
+    if type(addonName) ~= "string" or addonName == "" then
+        return false
+    end
+    if type(NS.IsAddonEnabledForCurrentCharacter) == "function"
+        and NS.IsAddonEnabledForCurrentCharacter(addonName)
+    then
+        return true
+    end
+    return type(NS.IsAddonLoaded) == "function" and NS.IsAddonLoaded(addonName) or false
+end
+
+local function AreRoutingBackendDependenciesEnabled(def)
+    if type(def) ~= "table" then
+        return false
+    end
+    if def.id == "direct" then
+        return true
+    end
+    if type(def.addons) ~= "table" or #def.addons == 0 then
+        return false
+    end
+    for index = 1, #def.addons do
+        if not IsAddonEnabledForInitialRoutingDefault(def.addons[index]) then
+            return false
+        end
+    end
+    return true
+end
+
+local function SelectInitialRoutingBackend()
+    for index = 1, #ROUTING_BACKEND_DEFAULT_PRIORITY do
+        local def = ROUTING_BACKEND_DEFAULT_PRIORITY[index]
+        if AreRoutingBackendDependenciesEnabled(def) then
+            return def.id
+        end
+    end
+    return "direct"
+end
 
 -- ============================================================
 -- Normalizers
 -- ============================================================
 
 function NS.NormalizeSkin(value)
-    if value == C.SKIN_STARLIGHT then
-        return C.SKIN_STARLIGHT
+    if value == C.SKIN_DEFAULT then
+        return C.SKIN_DEFAULT
     end
-    if value == C.SKIN_STEALTH then
-        return C.SKIN_STEALTH
+
+    if type(value) == "string" then
+        local key = value:lower():gsub("%s+", "_")
+        if key ~= "tomtom_default" and type(NS.HasArrowSkin) == "function" and NS.HasArrowSkin(key) then
+            return key
+        end
+
+        -- During early file load the registry may not exist yet. Runtime
+        -- normalization will re-check against the final registered skin list.
+        if type(NS.HasArrowSkin) ~= "function" then
+            if key == C.SKIN_STARLIGHT or key == C.SKIN_STEALTH then
+                return key
+            end
+        end
     end
+
     return C.SKIN_DEFAULT
 end
 
@@ -200,6 +249,68 @@ function NS.NormalizeManualWaypointClearDistance(value)
     if n > C.MANUAL_CLEAR_DISTANCE_MAX then n = C.MANUAL_CLEAR_DISTANCE_MAX end
     n = math.floor((n / C.MANUAL_CLEAR_DISTANCE_STEP) + 0.5) * C.MANUAL_CLEAR_DISTANCE_STEP
     return n
+end
+
+function NS.NormalizeAddonTakeoverName(value)
+    if type(value) ~= "string" then
+        return nil
+    end
+    value = value:gsub("^%s+", ""):gsub("%s+$", "")
+    value = value:gsub("/", "\\")
+    local marker = "Interface\\AddOns\\"
+    local lowered = value:lower()
+    local markerStart = lowered:find(marker:lower(), 1, true)
+    if markerStart then
+        value = value:sub(markerStart + #marker)
+        local slash = value:find("\\", 1, true)
+        if slash then
+            value = value:sub(1, slash - 1)
+        end
+    end
+    value = value:gsub("^\\+", ""):gsub("\\+$", "")
+    value = value:gsub("^%s+", ""):gsub("%s+$", "")
+    if value == "" then
+        return nil
+    end
+    return value
+end
+
+local function NormalizeAddonTakeoverList(list)
+    local keyed = {}
+    local out = {}
+
+    local function add(value)
+        local name = NS.NormalizeAddonTakeoverName(value)
+        if not name then
+            return
+        end
+        local key = name:lower()
+        if keyed[key] then
+            return
+        end
+        keyed[key] = true
+        out[#out + 1] = name
+    end
+
+    if type(list) == "table" then
+        for key, value in pairs(list) do
+            if type(key) == "string" and value == true then
+                add(key)
+            else
+                add(value)
+            end
+        end
+    end
+
+    table.sort(out, function(a, b) return a:lower() < b:lower() end)
+    return out
+end
+
+local function NormalizeAddonTakeoverLists(db)
+    db.genericAddonBlizzardTakeoverWhitelist =
+        NormalizeAddonTakeoverList(db.genericAddonBlizzardTakeoverWhitelist)
+    db.genericAddonBlizzardTakeoverDenylist =
+        NormalizeAddonTakeoverList(db.genericAddonBlizzardTakeoverDenylist)
 end
 
 -- Pre-compute format strings for each number-type overlay setting def.
@@ -310,10 +421,10 @@ local function GetDBMeta()
 end
 
 local function GetCharDB()
-    if type(ZygorWaypointCharDB) ~= "table" then
-        ZygorWaypointCharDB = {}
+    if type(AzerothWaypointCharDB) ~= "table" then
+        AzerothWaypointCharDB = {}
     end
-    return ZygorWaypointCharDB
+    return AzerothWaypointCharDB
 end
 
 local function ParseVersionParts(version)
@@ -367,38 +478,15 @@ function NS.CompareAddonVersions(left, right)
     return 0
 end
 
-local function IsLegacy2xUpgrade(previousVersion)
-    if type(previousVersion) ~= "string" or previousVersion == "" then
-        return false
-    end
-
-    local previousMajor = NS.GetAddonVersionMajor(previousVersion)
-    return previousMajor == 2 and NS.CompareAddonVersions(previousVersion, NS.VERSION) < 0
-end
-
-local function HasLegacy2xObsoleteDBKeys(db)
-    if type(db) ~= "table" then
-        return false
-    end
-
-    for _, key in ipairs(LEGACY_2X_OBSOLETE_DB_KEYS) do
-        if db[key] ~= nil then
-            return true
-        end
-    end
-
-    return false
-end
-
 -- ============================================================
 -- DB access
 -- ============================================================
 
 function NS.GetDB()
-    if type(ZygorWaypointDB) ~= "table" then
-        ZygorWaypointDB = {}
+    if type(AzerothWaypointDB) ~= "table" then
+        AzerothWaypointDB = {}
     end
-    return ZygorWaypointDB
+    return AzerothWaypointDB
 end
 
 function NS.ApplyDBDefaults()
@@ -406,12 +494,7 @@ function NS.ApplyDBDefaults()
     if not dbState.initCaptured then
         dbState.initCaptured = true
         dbState.hadExistingData = next(db) ~= nil
-        if type(db._meta) == "table" and type(db._meta.lastAddonVersion) == "string" and db._meta.lastAddonVersion ~= "" then
-            dbState.previousAddonVersion = db._meta.lastAddonVersion
-        end
     end
-
-    local meta = GetDBMeta()
 
     for key, value in pairs(DB_DEFAULTS) do
         if db[key] == nil then
@@ -419,36 +502,30 @@ function NS.ApplyDBDefaults()
         end
     end
 
-    if meta.superTrackedQuestArrivalClearModeVersion ~= 1 then
-        db.superTrackedQuestAutoClear = false
-        meta.superTrackedQuestArrivalClearModeVersion = 1
+    db.arrowSkin = NS.NormalizeSkin(db.arrowSkin)
+    db.arrowScale = NS.NormalizeScale(db.arrowScale)
+    db.specialTravelButtonScale = NS.NormalizeScale(db.specialTravelButtonScale)
+    if dbState.hadExistingData == false then
+        db.routingBackend = SelectInitialRoutingBackend()
+    elseif not VALID_ROUTING_BACKENDS[db.routingBackend] then
+        db.routingBackend = "direct"
     end
-
-    db.enabled = nil
-
-    db.tomtomSkin = NS.NormalizeSkin(db.tomtomSkin)
-    db.tomtomArrowScale = NS.NormalizeScale(db.tomtomArrowScale)
     db.guideStepBackgroundsHover = NS.NormalizeGuideStepBackgroundsHoverMode(db.guideStepBackgroundsHover)
     db.manualWaypointClearDistance = NS.NormalizeManualWaypointClearDistance(db.manualWaypointClearDistance)
-
-    if db.worldOverlayWaypointTextColorMode == nil then
-        if db.worldOverlayTintInfoText == false then
-            db.worldOverlayWaypointTextColorMode = C.WORLD_OVERLAY_COLOR_NONE
-        else
-            db.worldOverlayWaypointTextColorMode = C.WORLD_OVERLAY_COLOR_DEFAULT
-        end
+    if db.manualClickQueueMode ~= "create"
+        and db.manualClickQueueMode ~= "replace"
+        and db.manualClickQueueMode ~= "append"
+        and db.manualClickQueueMode ~= "ask"
+    then
+        db.manualClickQueueMode = "create"
     end
-    db.worldOverlayTintInfoText = nil
+    NormalizeAddonTakeoverLists(db)
 
     for key, def in pairs(OVERLAY_SETTING_DEFS) do
         if db[key] == nil then
             db[key] = NormalizeOverlaySetting(key, def.default)
         end
         db[key] = NormalizeOverlaySetting(key, db[key])
-    end
-
-    if meta.legacy2xAutoRepairDone ~= true then
-        meta.legacy2xAutoRepairDone = false
     end
 
     return db
@@ -478,6 +555,15 @@ function NS.MarkWaypointUIPromptShown()
     GetCharDB().waypointUIPromptVersion = NS.VERSION
 end
 
+function NS.HasSeenZygorArrowPrompt()
+    return GetCharDB().zygorArrowPromptShown == true
+end
+
+function NS.MarkZygorArrowPromptShown()
+    GetCharDB().zygorArrowPromptShown = true
+    return true
+end
+
 function NS.HasSeenOverviewOnCurrentCharacter()
     return GetCharDB().overviewShown == true
 end
@@ -501,99 +587,53 @@ function NS.ConsumePendingOverviewReplayForCurrentCharacter()
     return true
 end
 
-function NS.MarkLegacy2xAutoRepairDone()
-    local meta = GetDBMeta()
-    if meta.legacy2xAutoRepairDone ~= true then
-        meta.legacy2xAutoRepairVersion = NS.VERSION
-    end
-    meta.legacy2xAutoRepairDone = true
-end
-
-function NS.MarkLegacy2xSavedVariableCleanupDone()
-    local meta = GetDBMeta()
-    meta.legacy2xSavedVariableCleanupVersion = LEGACY_2X_SAVED_VARIABLE_CLEANUP_VERSION
-end
-
-function NS.ShouldRunLegacy2xAutoRepair()
-    local meta = GetDBMeta()
-    if meta.legacy2xAutoRepairDone == true then
-        return false
-    end
-
-    local currentVersion = NS.VERSION
-    local previousVersion = dbState.previousAddonVersion or NS.GetStoredAddonVersion()
-    if IsLegacy2xUpgrade(previousVersion) then
-        return true
-    end
-
-    local currentMajor = NS.GetAddonVersionMajor(currentVersion)
-    return dbState.hadExistingData == true and currentMajor == 2
-end
-
-function NS.ShouldRunLegacy2xSavedVariableCleanup()
-    local meta = GetDBMeta()
-    local appliedVersion = tonumber(meta.legacy2xSavedVariableCleanupVersion) or 0
-    if appliedVersion >= LEGACY_2X_SAVED_VARIABLE_CLEANUP_VERSION then
-        return false
-    end
-
-    local previousVersion = dbState.previousAddonVersion or NS.GetStoredAddonVersion()
-    if IsLegacy2xUpgrade(previousVersion) then
-        return true
-    end
-
-    return HasLegacy2xObsoleteDBKeys(NS.GetDB())
-end
-
-function NS.RunLegacy2xSavedVariableCleanup()
-    local db = NS.GetDB()
-    local removed = {}
-
-    for _, key in ipairs(LEGACY_2X_OBSOLETE_DB_KEYS) do
-        if db[key] ~= nil then
-            db[key] = nil
-            removed[#removed + 1] = key
-        end
-    end
-
-    return removed
-end
-
 -- ============================================================
 -- Arrow and skin settings
 -- ============================================================
 
 function NS.IsRoutingEnabled()
     local db = NS.GetDB()
-    return db.zygorRouting ~= false
+    return db.routingEnabled ~= false
 end
 
 function NS.GetSkinChoice()
     local db = NS.GetDB()
-    db.tomtomSkin = NS.NormalizeSkin(db.tomtomSkin)
-    return db.tomtomSkin
+    db.arrowSkin = NS.NormalizeSkin(db.arrowSkin)
+    return db.arrowSkin
 end
 
 function NS.SetSkinChoice(skin)
     local db = NS.GetDB()
-    db.tomtomSkin = NS.NormalizeSkin(skin)
+    db.arrowSkin = NS.NormalizeSkin(skin)
 end
 
 function NS.GetArrowScale()
     local db = NS.GetDB()
-    db.tomtomArrowScale = NS.NormalizeScale(db.tomtomArrowScale)
-    return db.tomtomArrowScale
+    db.arrowScale = NS.NormalizeScale(db.arrowScale)
+    return db.arrowScale
 end
 
 function NS.SetArrowScale(value)
     local db = NS.GetDB()
-    db.tomtomArrowScale = NS.NormalizeScale(value)
-    return db.tomtomArrowScale
+    db.arrowScale = NS.NormalizeScale(value)
+    return db.arrowScale
 end
 
 function NS.ApplyTomTomScalePolicy()
     local db = NS.GetDB()
-    db.tomtomArrowScale = NS.NormalizeScale(db.tomtomArrowScale)
+    db.arrowScale = NS.NormalizeScale(db.arrowScale)
+end
+
+function NS.GetSpecialTravelButtonScale()
+    local db = NS.GetDB()
+    db.specialTravelButtonScale = NS.NormalizeScale(db.specialTravelButtonScale)
+    return db.specialTravelButtonScale
+end
+
+function NS.SetSpecialTravelButtonScale(value)
+    local db = NS.GetDB()
+    db.specialTravelButtonScale = NS.NormalizeScale(value)
+    return db.specialTravelButtonScale
 end
 
 -- ============================================================
@@ -668,6 +708,153 @@ function NS.SetTrackedQuestAutoRouteEnabled(enabled)
     return db.trackedQuestAutoRoute
 end
 
+function NS.IsUntrackedQuestAutoClearEnabled()
+    local db = NS.GetDB()
+    return db.untrackedQuestAutoClear ~= false
+end
+
+function NS.SetUntrackedQuestAutoClearEnabled(enabled)
+    local db = NS.GetDB()
+    db.untrackedQuestAutoClear = enabled and true or false
+    return db.untrackedQuestAutoClear
+end
+
+function NS.IsGenericAddonBlizzardTakeoverEnabled()
+    local db = NS.GetDB()
+    return db.genericAddonBlizzardTakeoverEnabled == true
+end
+
+function NS.SetGenericAddonBlizzardTakeoverEnabled(enabled)
+    local db = NS.GetDB()
+    db.genericAddonBlizzardTakeoverEnabled = enabled and true or false
+    return db.genericAddonBlizzardTakeoverEnabled
+end
+
+local function GetAddonTakeoverListField(kind)
+    kind = type(kind) == "string" and kind:lower() or ""
+    if kind == "whitelist" or kind == "allowlist" or kind == "allow" or kind == "white" then
+        return "genericAddonBlizzardTakeoverWhitelist", "whitelist"
+    end
+    if kind == "denylist" or kind == "blacklist" or kind == "blocklist" or kind == "deny" or kind == "black" then
+        return "genericAddonBlizzardTakeoverDenylist", "denylist"
+    end
+    return nil, nil
+end
+
+local function GetNormalizedAddonTakeoverList(db, field)
+    db[field] = NormalizeAddonTakeoverList(db[field])
+    return db[field]
+end
+
+local function FindAddonTakeoverListIndex(list, addonName)
+    local normalized = NS.NormalizeAddonTakeoverName(addonName)
+    if not normalized then
+        return nil, nil
+    end
+    local key = normalized:lower()
+    for index, entry in ipairs(list or {}) do
+        if type(entry) == "string" and entry:lower() == key then
+            return index, entry
+        end
+    end
+    return nil, normalized
+end
+
+function NS.GetGenericAddonBlizzardTakeoverList(kind)
+    local field = GetAddonTakeoverListField(kind)
+    if not field then
+        return {}
+    end
+    local db = NS.GetDB()
+    local list = GetNormalizedAddonTakeoverList(db, field)
+    local copy = {}
+    for index, entry in ipairs(list) do
+        copy[index] = entry
+    end
+    return copy
+end
+
+function NS.AddGenericAddonBlizzardTakeoverListEntry(kind, addonName)
+    local field, canonicalKind = GetAddonTakeoverListField(kind)
+    if not field then
+        return false, "invalid_list"
+    end
+    local normalized = NS.NormalizeAddonTakeoverName(addonName)
+    if not normalized then
+        return false, "invalid_addon"
+    end
+
+    local db = NS.GetDB()
+    local list = GetNormalizedAddonTakeoverList(db, field)
+    local existingIndex, existingName = FindAddonTakeoverListIndex(list, normalized)
+    if not existingIndex then
+        list[#list + 1] = existingName or normalized
+        db[field] = NormalizeAddonTakeoverList(list)
+    end
+
+    local opposite = canonicalKind == "whitelist"
+        and "genericAddonBlizzardTakeoverDenylist"
+        or "genericAddonBlizzardTakeoverWhitelist"
+    local oppositeList = GetNormalizedAddonTakeoverList(db, opposite)
+    local oppositeIndex = FindAddonTakeoverListIndex(oppositeList, normalized)
+    if oppositeIndex then
+        table.remove(oppositeList, oppositeIndex)
+        db[opposite] = NormalizeAddonTakeoverList(oppositeList)
+    end
+
+    return true, normalized
+end
+
+function NS.RemoveGenericAddonBlizzardTakeoverListEntry(kind, addonName)
+    local field = GetAddonTakeoverListField(kind)
+    if not field then
+        return false, "invalid_list"
+    end
+    local db = NS.GetDB()
+    local list = GetNormalizedAddonTakeoverList(db, field)
+    local index, existingName = FindAddonTakeoverListIndex(list, addonName)
+    if not index then
+        return false, "not_found"
+    end
+    table.remove(list, index)
+    db[field] = NormalizeAddonTakeoverList(list)
+    return true, existingName
+end
+
+function NS.ClearGenericAddonBlizzardTakeoverList(kind)
+    local field = GetAddonTakeoverListField(kind)
+    if not field then
+        return false, "invalid_list"
+    end
+    local db = NS.GetDB()
+    db[field] = {}
+    return true
+end
+
+function NS.GetGenericAddonBlizzardTakeoverDecision(addonName)
+    local normalized = NS.NormalizeAddonTakeoverName(addonName)
+    if not normalized then
+        return false, "invalid_addon"
+    end
+    local db = NS.GetDB()
+    local denylist = GetNormalizedAddonTakeoverList(db, "genericAddonBlizzardTakeoverDenylist")
+    local deniedIndex, deniedName = FindAddonTakeoverListIndex(denylist, normalized)
+    if deniedIndex then
+        return false, "denylist", deniedName
+    end
+
+    local whitelist = GetNormalizedAddonTakeoverList(db, "genericAddonBlizzardTakeoverWhitelist")
+    local allowedIndex, allowedName = FindAddonTakeoverListIndex(whitelist, normalized)
+    if allowedIndex then
+        return true, "whitelist", allowedName
+    end
+
+    if db.genericAddonBlizzardTakeoverEnabled == true then
+        return true, "unknown_enabled", normalized
+    end
+    return false, "unknown_disabled", normalized
+end
+
 function NS.IsSuperTrackedQuestAutoClearEnabled()
     local db = NS.GetDB()
     return db.superTrackedQuestAutoClear ~= false
@@ -677,22 +864,6 @@ function NS.SetSuperTrackedQuestAutoClearEnabled(enabled)
     local db = NS.GetDB()
     db.superTrackedQuestAutoClear = enabled and true or false
     return db.superTrackedQuestAutoClear
-end
-
-function NS.IsManualQueueAutoRoutingEnabled()
-    local db = NS.GetDB()
-    return db.manualQueueAutoRouting == true
-end
-
-function NS.SetManualQueueAutoRoutingEnabled(enabled)
-    local db = NS.GetDB()
-    db.manualQueueAutoRouting = enabled and true or false
-
-    if not db.manualQueueAutoRouting then
-        NS.ClearManualRouteQueue()
-    end
-
-    return db.manualQueueAutoRouting
 end
 
 -- ============================================================

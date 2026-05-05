@@ -1,4 +1,4 @@
-local NS = _G.ZygorWaypointNS
+local NS = _G.AzerothWaypointNS
 
 -- ============================================================
 -- Namespace bootstrap
@@ -9,7 +9,7 @@ NS.State = NS.State or {}
 NS.Runtime = NS.Runtime or {}
 NS.State.debugTrace = NS.State.debugTrace or {}
 
--- Performance profiling counters, reset at the start of each /zwp churn run.
+-- Performance profiling counters, reset at the start of each /awp churn run.
 NS.State.churn = NS.State.churn or {
     active = false,
     startedAt = 0,
@@ -21,6 +21,21 @@ NS.State.churn = NS.State.churn or {
     tickFromOther = 0,
     resolveHit = 0,
     resolveMiss = 0,
+    resolveMissNoCache = 0,
+    resolveMissStep = 0,
+    resolveMissGoal = 0,
+    resolveMissTargetSig = 0,
+    resolveMissMap = 0,
+    resolveMissCoord = 0,
+    resolveMissKind = 0,
+    resolveMissLegKind = 0,
+    resolveMissRouteType = 0,
+    resolveMissTitle = 0,
+    resolveMissFactsEpoch = 0,
+    resolveMissDialogEpoch = 0,
+    resolveMissFactsDirty = 0,
+    resolveMissFullDebug = 0,
+    resolveMissOther = 0,
     buildFacts = 0,
     invalidateFacts = 0,
     invalidateDialog = 0,
@@ -30,6 +45,25 @@ NS.State.churn = NS.State.churn or {
     nativeWorldOverlayUpdate = 0,
     extractWaypoint = 0,
     extractManual = 0,
+    manualMapPinAreaHit = 0,
+    manualMapPinAreaMiss = 0,
+    manualMapPinTaxiHit = 0,
+    manualMapPinTaxiMiss = 0,
+    manualIdentityAreaHit = 0,
+    manualIdentityAreaMiss = 0,
+    manualIdentityTaxiHit = 0,
+    manualIdentityTaxiMiss = 0,
+    manualIdentityEmptyBase = 0,
+    manualPersistCalls = 0,
+    manualPersistRecordReuse = 0,
+    manualPersistRecordBuild = 0,
+    manualPersistEqualSkip = 0,
+    manualPersistWrite = 0,
+    manualPersistNoRecord = 0,
+    routePlanAccept = 0,
+    routePlanSkip = 0,
+    routeBackendInvalidation = 0,
+    routeBackendInvalidationSkip = 0,
     ensureHost = 0,
     resolveSettableTarget = 0,
     trySetHost = 0,
@@ -38,6 +72,25 @@ NS.State.churn = NS.State.churn or {
     hostThrottled = 0,
     refreshWorldOverlay = 0,
     userWaypointUpdatedEvent = 0,
+    phaseMemoryEnabled = false,
+    phaseBridgeSetupKB = 0,
+    phaseManualExtractKB = 0,
+    phaseManualLookupKB = 0,
+    phaseManualMapPinResolveKB = 0,
+    phaseManualMapPinKeyKB = 0,
+    phaseManualIdentityResolveKB = 0,
+    phaseTargetKB = 0,
+    phaseRouteKB = 0,
+    phaseResolverKB = 0,
+    phaseFinalizeKB = 0,
+    phaseBridgeStatePrepKB = 0,
+    phaseBridgeStatePersistKB = 0,
+    phaseBridgeStateCompareKB = 0,
+    phaseBridgePushKB = 0,
+    phaseBridgeOverlayKB = 0,
+    phaseWorldOverlayKB = 0,
+    phaseNativeSyncKB = 0,
+    phaseNativeUpdateKB = 0,
     peakMemKB = 0,
     samples = 0,
 }
@@ -52,8 +105,8 @@ local C = NS.Constants
 C.SKIN_DEFAULT = "default"
 C.SKIN_STARLIGHT = "starlight"
 C.SKIN_STEALTH = "stealth"
-C.THEME_STARLIGHT = "zwp-zyg-starlight"
-C.THEME_STEALTH = "zwp-zyg-stealth"
+C.THEME_STARLIGHT = "awp-zyg-starlight"
+C.THEME_STEALTH = "awp-zyg-stealth"
 
 -- Scale and distance settings
 C.SCALE_DEFAULT = 1.00
@@ -134,11 +187,13 @@ C.WORLD_OVERLAY_PINPOINT_MODES = {
 -- World overlay beacon style identifiers
 C.WORLD_OVERLAY_BEACON_STYLE_BEACON = "beacon"
 C.WORLD_OVERLAY_BEACON_STYLE_BASE = "base"
+C.WORLD_OVERLAY_BEACON_STYLE_DISTANCE = "distance"
 C.WORLD_OVERLAY_BEACON_STYLE_OFF  = "off"
 
 C.WORLD_OVERLAY_BEACON_STYLES = {
     [C.WORLD_OVERLAY_BEACON_STYLE_BEACON] = true,
     [C.WORLD_OVERLAY_BEACON_STYLE_BASE] = true,
+    [C.WORLD_OVERLAY_BEACON_STYLE_DISTANCE] = true,
     [C.WORLD_OVERLAY_BEACON_STYLE_OFF]  = true,
 }
 
@@ -160,8 +215,8 @@ C.WORLD_OVERLAY_PLAQUE_TYPES = {
 }
 
 -- World overlay color mode identifiers
-C.WORLD_OVERLAY_COLOR_DEFAULT = "default"
-C.WORLD_OVERLAY_COLOR_NONE = "none"
+C.WORLD_OVERLAY_COLOR_AUTO = "auto"
+C.WORLD_OVERLAY_COLOR_GRAY = "gray"
 C.WORLD_OVERLAY_COLOR_GOLD = "gold"
 C.WORLD_OVERLAY_COLOR_WHITE = "white"
 C.WORLD_OVERLAY_COLOR_SILVER = "silver"
@@ -174,8 +229,8 @@ C.WORLD_OVERLAY_COLOR_PINK = "pink"
 C.WORLD_OVERLAY_COLOR_CUSTOM = "custom"
 
 C.WORLD_OVERLAY_COLOR_MODES = {
-    [C.WORLD_OVERLAY_COLOR_DEFAULT] = true,
-    [C.WORLD_OVERLAY_COLOR_NONE] = true,
+    [C.WORLD_OVERLAY_COLOR_AUTO] = true,
+    [C.WORLD_OVERLAY_COLOR_GRAY] = true,
     [C.WORLD_OVERLAY_COLOR_GOLD] = true,
     [C.WORLD_OVERLAY_COLOR_WHITE] = true,
     [C.WORLD_OVERLAY_COLOR_SILVER] = true,
@@ -189,6 +244,7 @@ C.WORLD_OVERLAY_COLOR_MODES = {
 }
 
 C.WORLD_OVERLAY_COLOR_PRESETS = {
+    [C.WORLD_OVERLAY_COLOR_GRAY] = { r = 0.89, g = 0.89, b = 0.89 },
     [C.WORLD_OVERLAY_COLOR_GOLD] = { r = 0.95, g = 0.84, b = 0.44 },
     [C.WORLD_OVERLAY_COLOR_WHITE] = { r = 1.00, g = 1.00, b = 1.00 },
     [C.WORLD_OVERLAY_COLOR_SILVER] = { r = 0.78, g = 0.82, b = 0.88 },
@@ -208,10 +264,28 @@ NS.Runtime.debug = NS.Runtime.debug == true
 
 local _joinBuf = {}
 
+local function FormatControlCharForChat(char)
+    if char == "\r" or char == "\n" or char == "\t" then
+        return " "
+    end
+
+    local byte = string.byte(char)
+    if byte == 31 then
+        return "<US>"
+    end
+
+    return string.format("<0x%02X>", byte or 0)
+end
+
+function NS.SanitizeDiagnosticText(value)
+    value = tostring(value)
+    return (value:gsub("[%c]", FormatControlCharForChat))
+end
+
 local function JoinArgs(...)
     local n = select("#", ...)
     for i = 1, n do
-        _joinBuf[i] = tostring(select(i, ...))
+        _joinBuf[i] = NS.SanitizeDiagnosticText(select(i, ...))
     end
     local result = table.concat(_joinBuf, " ", 1, n)
     for i = 1, n do
@@ -222,12 +296,65 @@ end
 
 function NS.Msg(...)
     if not DEFAULT_CHAT_FRAME then return end
-    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[ZWP]|r " .. JoinArgs(...))
+    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[AWP]|r " .. JoinArgs(...))
 end
 
 function NS.Log(...)
     if not NS.Runtime.debug or not DEFAULT_CHAT_FRAME then return end
-    DEFAULT_CHAT_FRAME:AddMessage("|cff99ccff[ZWP-DBG]|r " .. JoinArgs(...))
+    DEFAULT_CHAT_FRAME:AddMessage("|cff99ccff[AWP-DBG]|r " .. JoinArgs(...))
+end
+
+function NS.ChurnPhaseStart()
+    local churn = NS.State and NS.State.churn
+    if not (churn and churn.active and churn.phaseMemoryEnabled) then
+        return nil
+    end
+    if type(UpdateAddOnMemoryUsage) ~= "function" or type(GetAddOnMemoryUsage) ~= "function" then
+        return nil
+    end
+    UpdateAddOnMemoryUsage()
+    return tonumber(GetAddOnMemoryUsage(NS.ADDON_NAME)) or 0
+end
+
+function NS.ChurnPhaseEnd(key, startedKB)
+    if type(key) ~= "string" or type(startedKB) ~= "number" then
+        return
+    end
+    local churn = NS.State and NS.State.churn
+    if not (churn and churn.active and churn.phaseMemoryEnabled) then
+        return
+    end
+    if type(UpdateAddOnMemoryUsage) ~= "function" or type(GetAddOnMemoryUsage) ~= "function" then
+        return
+    end
+
+    UpdateAddOnMemoryUsage()
+    local delta = (tonumber(GetAddOnMemoryUsage(NS.ADDON_NAME)) or startedKB) - startedKB
+    if delta <= 0 then
+        return
+    end
+
+    churn[key] = (tonumber(churn[key]) or 0) + delta
+    local peakKey = key .. "Peak"
+    if delta > (tonumber(churn[peakKey]) or 0) then
+        churn[peakKey] = delta
+    end
+    local countKey = key .. "Count"
+    churn[countKey] = (tonumber(churn[countKey]) or 0) + 1
+end
+
+function NS.BumpChurnCounter(key, amount)
+    if type(key) ~= "string" or key == "" then
+        return
+    end
+
+    local churn = NS.State and NS.State.churn
+    if type(churn) ~= "table" or churn.active ~= true then
+        return
+    end
+
+    local delta = tonumber(amount) or 1
+    churn[key] = (tonumber(churn[key]) or 0) + delta
 end
 
 function NS.ZGV()
@@ -291,6 +418,30 @@ function NS.InstallSuperTrackDebugHooks()
         if type(C_SuperTrack.SetSuperTrackedQuestID) == "function" then
             hooksecurefunc(C_SuperTrack, "SetSuperTrackedQuestID", function(questID)
                 NS.LogSuperTrackTrace("SetSuperTrackedQuestID", tostring(questID))
+            end)
+        end
+
+        if type(C_SuperTrack.SetSuperTrackedMapPin) == "function" then
+            hooksecurefunc(C_SuperTrack, "SetSuperTrackedMapPin", function(pinType, pinID)
+                NS.LogSuperTrackTrace("SetSuperTrackedMapPin", tostring(pinType), tostring(pinID))
+            end)
+        end
+
+        if type(C_SuperTrack.ClearSuperTrackedMapPin) == "function" then
+            hooksecurefunc(C_SuperTrack, "ClearSuperTrackedMapPin", function()
+                NS.LogSuperTrackTrace("ClearSuperTrackedMapPin")
+            end)
+        end
+
+        if type(C_SuperTrack.SetSuperTrackedContent) == "function" then
+            hooksecurefunc(C_SuperTrack, "SetSuperTrackedContent", function(trackableType, trackableID)
+                NS.LogSuperTrackTrace("SetSuperTrackedContent", tostring(trackableType), tostring(trackableID))
+            end)
+        end
+
+        if type(C_SuperTrack.SetSuperTrackedVignette) == "function" then
+            hooksecurefunc(C_SuperTrack, "SetSuperTrackedVignette", function(vignetteGUID)
+                NS.LogSuperTrackTrace("SetSuperTrackedVignette", tostring(vignetteGUID))
             end)
         end
 

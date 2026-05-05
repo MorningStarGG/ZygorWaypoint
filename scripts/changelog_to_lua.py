@@ -34,9 +34,15 @@ DEFAULT_OUTPUT = Path("docs/changelog_data.lua")
 
 
 @dataclass
+class Entry:
+    text: str
+    level: int = 1
+
+
+@dataclass
 class Section:
     title: str
-    entries: list[str] = field(default_factory=list)
+    entries: list[Entry] = field(default_factory=list)
 
 
 @dataclass
@@ -75,6 +81,19 @@ def escape_lua_string(text: str) -> str:
     return text.replace("\\", "\\\\").replace('"', '\\"')
 
 
+def entry_level(line: str) -> int:
+    indent = 0
+    for char in line:
+        if char == " ":
+            indent += 1
+        elif char == "\t":
+            indent += 4
+        else:
+            break
+
+    return max(1, indent // 2)
+
+
 def parse_changelog(markdown: str) -> list[VersionEntry]:
     entries: list[VersionEntry] = []
     current_version: VersionEntry | None = None
@@ -103,7 +122,7 @@ def parse_changelog(markdown: str) -> list[VersionEntry]:
         if current_version is None:
             continue
 
-        section_match = SECTION_RE.match(stripped)
+        section_match = SECTION_RE.match(line)
         if section_match:
             current_section = Section(title=normalize_text(section_match.group(1)))
             current_version.sections.append(current_section)
@@ -113,7 +132,7 @@ def parse_changelog(markdown: str) -> list[VersionEntry]:
         if entry_match and current_section is not None:
             entry_text = normalize_text(entry_match.group(1))
             if entry_text:
-                current_section.entries.append(entry_text)
+                current_section.entries.append(Entry(text=entry_text, level=entry_level(line)))
             continue
 
     return [entry for entry in entries if entry.sections]
@@ -127,7 +146,7 @@ def take_recent(entries: list[VersionEntry], count: int) -> list[VersionEntry]:
 
 def render_lua(entries: Iterable[VersionEntry]) -> str:
     lines: list[str] = [
-        "local NS = _G.ZygorWaypointNS",
+        "local NS = _G.AzerothWaypointNS",
         "",
         "NS.CHANGELOG_DATA = {",
     ]
@@ -140,7 +159,12 @@ def render_lua(entries: Iterable[VersionEntry]) -> str:
         for section in version.sections:
             lines.append(f'            {{ title = "{escape_lua_string(section.title)}", entries = {{')
             for entry in section.entries:
-                lines.append(f'                "{escape_lua_string(entry)}",')
+                lines.append(
+                    "                { "
+                    f'text = "{escape_lua_string(entry.text)}", '
+                    f"level = {entry.level} "
+                    "},"
+                )
             lines.append("            }},")
 
         lines.append("        },")

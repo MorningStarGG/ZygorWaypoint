@@ -1,4 +1,5 @@
-local NS = _G.ZygorWaypointNS
+local NS = _G.AzerothWaypointNS
+local FW = NS.Internal.Interface.Framework
 
 local frame
 
@@ -11,22 +12,31 @@ local CONTENT_RIGHT_PADDING = 10
 local SCROLL_STEP = 48
 local BLOCK_SPACING      = 16
 local IMAGE_GAP          = 12
-local BODY_INDENT        = 8
+local BODY_INDENT        = 14
 
 local HEADING_LINE_R, HEADING_LINE_G, HEADING_LINE_B, HEADING_LINE_A = 1.0, 0.82, 0.08, 0.38
+local HEADING_GLOW_ATLAS = "AftLevelup-GlowLine"
+local HEADING_GLOW_W     = 322
+local HEADING_GLOW_H     = 18
+local PAGE_GLOW_W        = 360
+local PAGE_GLOW_H        = 20
+local PAGE_INTRO_PAD_X   = 16
+local PAGE_INTRO_PAD_Y   = 10
+local PAGE_INTRO_BG      = { 0.050, 0.040, 0.026, 0.72 }
+local PAGE_INTRO_BORDER  = { 1.000, 0.820, 0.080, 0.22 }
 
 local NOTE_BG_R,     NOTE_BG_G,     NOTE_BG_B,     NOTE_BG_A     = 0.08, 0.10, 0.15, 0.92
 local NOTE_ACCENT_R, NOTE_ACCENT_G, NOTE_ACCENT_B, NOTE_ACCENT_A = 0.38, 0.62, 0.90, 0.88
 local NOTE_ACCENT_WIDTH = 3
 local NOTE_PAD_X        = 10
 local NOTE_PAD_Y        = 7
-local FRAME_TITLE = "ZygorWaypoint Help"
-local PORTRAIT_TEXTURE = "Interface\\AddOns\\ZygorWaypoint\\media\\icon.png"
+local FRAME_TITLE = "AzerothWaypoint Help"
+local ChangelogFormat = NS.ChangelogFormat or {}
 
 local TEXT_STYLES = {
     heading = {
         fontObject = "GameFontNormal",
-        justifyH = "LEFT",
+        justifyH = "CENTER",
         justifyV = "TOP",
         spacing = 2,
         color = { 1.0, 0.85, 0.1, 1.0 },
@@ -103,43 +113,11 @@ local function GetPageIndex(pageRef)
 end
 
 local function FormatRecentChangelogText(limit)
-    local data = NS.CHANGELOG_DATA
-    if type(data) ~= "table" or #data == 0 then
-        return "No changelog data available."
+    if type(ChangelogFormat.FormatReleaseText) == "function" then
+        return ChangelogFormat.FormatReleaseText(NS.CHANGELOG_DATA, limit or 3)
     end
 
-    local lines = {}
-    local count = math.min(limit or 3, #data)
-
-    for index = 1, count do
-        local entry = data[index]
-        if index > 1 then
-            lines[#lines + 1] = ""
-        end
-
-        lines[#lines + 1] = "|cffffd100Version " .. tostring(entry.version or "?") .. "|r"
-
-        for _, section in ipairs(entry.sections or {}) do
-            lines[#lines + 1] = ""
-            lines[#lines + 1] = "|cffffff99" .. tostring(section.title or "Untitled") .. "|r"
-            for _, item in ipairs(section.entries or {}) do
-                lines[#lines + 1] = "  - " .. tostring(item)
-            end
-        end
-    end
-
-    return table.concat(lines, "\n")
-end
-
-local function GetFrameTitleText(frameRef)
-    return frameRef.TitleText or (frameRef.TitleContainer and frameRef.TitleContainer.TitleText) or nil
-end
-
-local function GetFramePortrait(frameRef)
-    if type(frameRef.GetPortrait) == "function" then
-        return frameRef:GetPortrait()
-    end
-    return frameRef.portrait
+    return "No changelog data available."
 end
 
 local function ResetPool(pool)
@@ -252,6 +230,20 @@ local function ApplyImageBlockData(blockFrame, data)
     blockFrame.borderRight:SetPoint("BOTTOMRIGHT", blockFrame.canvas, "BOTTOMRIGHT", 0, 0)
     blockFrame.borderRight:SetWidth(1)
 
+    local frameless = data.frameless == true or data.frame == false or data.border == false
+    if frameless then
+        blockFrame.background:SetColorTexture(0, 0, 0, 0)
+        blockFrame.borderTop:Hide()
+        blockFrame.borderBottom:Hide()
+        blockFrame.borderLeft:Hide()
+        blockFrame.borderRight:Hide()
+    else
+        blockFrame.borderTop:Show()
+        blockFrame.borderBottom:Show()
+        blockFrame.borderLeft:Show()
+        blockFrame.borderRight:Show()
+    end
+
     if type(data.texture) == "string" and data.texture ~= "" then
         blockFrame.texture:SetTexture(data.texture)
         if type(data.texCoord) == "table" then
@@ -267,7 +259,9 @@ local function ApplyImageBlockData(blockFrame, data)
         blockFrame.placeholder:Show()
     end
 
-    if type(data.backgroundColor) == "table" then
+    if frameless then
+        blockFrame.background:SetColorTexture(0, 0, 0, 0)
+    elseif type(data.backgroundColor) == "table" then
         blockFrame.background:SetColorTexture(
             tonumber(data.backgroundColor.r or data.backgroundColor[1]) or 0.07,
             tonumber(data.backgroundColor.g or data.backgroundColor[2]) or 0.07,
@@ -336,13 +330,38 @@ local function AcquireHeadingLine(frameRef)
     local widget = pool[index]
     if not widget then
         widget = frameRef.content:CreateTexture(nil, "ARTWORK")
-        widget:SetHeight(1)
-        widget:SetColorTexture(HEADING_LINE_R, HEADING_LINE_G, HEADING_LINE_B, HEADING_LINE_A)
+        if type(widget.SetAtlas) == "function" then
+            local ok = pcall(widget.SetAtlas, widget, HEADING_GLOW_ATLAS)
+            if ok then
+                widget:SetVertexColor(1, 0.86, 0.18, 0.78)
+            else
+                widget:SetColorTexture(HEADING_LINE_R, HEADING_LINE_G, HEADING_LINE_B, HEADING_LINE_A)
+            end
+        else
+            widget:SetColorTexture(HEADING_LINE_R, HEADING_LINE_G, HEADING_LINE_B, HEADING_LINE_A)
+        end
         pool[index] = widget
     end
     pool.nextIndex = index + 1
+    widget:SetSize(HEADING_GLOW_W, HEADING_GLOW_H)
     widget:Show()
     return widget
+end
+
+local function ApplyGlowLine(texture, width, height, alpha)
+    if not texture then
+        return
+    end
+    texture:SetSize(width or HEADING_GLOW_W, height or HEADING_GLOW_H)
+    texture:SetAlpha(alpha or 1)
+    if type(texture.SetAtlas) == "function" then
+        local ok = pcall(texture.SetAtlas, texture, HEADING_GLOW_ATLAS)
+        if ok then
+            texture:SetVertexColor(1, 0.86, 0.18, 0.82)
+            return
+        end
+    end
+    texture:SetColorTexture(HEADING_LINE_R, HEADING_LINE_G, HEADING_LINE_B, HEADING_LINE_A)
 end
 
 local function CreateNoteBlock(parent)
@@ -381,17 +400,59 @@ local function AcquireNoteBlock(frameRef)
     return widget
 end
 
-local function ApplyNoteBlockLayout(noteFrame, text, contentWidth)
-    local innerW = math.max(contentWidth - NOTE_ACCENT_WIDTH - NOTE_PAD_X * 2, 80)
+local function ResolveJustifyH(align, fallback)
+    if align == "CENTER" or align == "center" then
+        return "CENTER"
+    elseif align == "RIGHT" or align == "right" then
+        return "RIGHT"
+    end
+    return fallback or "LEFT"
+end
+
+local function ApplyNoteBlockLayout(noteFrame, text, contentWidth, block)
+    block = type(block) == "table" and block or {}
+
+    local showAccent = block.accent ~= false and block.noAccent ~= true
+    local accentW = showAccent and NOTE_ACCENT_WIDTH or 0
+
+    if showAccent then
+        noteFrame.accent:Show()
+    else
+        noteFrame.accent:Hide()
+    end
+
+    local noteWidth = tonumber(block.width) or contentWidth
+    noteWidth = math.floor(math.max(120, math.min(noteWidth, contentWidth)))
+    local innerW = math.max(noteWidth - accentW - NOTE_PAD_X * 2, 80)
     noteFrame.label:SetWidth(innerW)
     noteFrame.label:SetText(text)
+    noteFrame.label:SetJustifyH(ResolveJustifyH(block.align, "LEFT"))
     noteFrame.label:ClearAllPoints()
-    noteFrame.label:SetPoint("TOPLEFT", noteFrame, "TOPLEFT", NOTE_ACCENT_WIDTH + NOTE_PAD_X, -NOTE_PAD_Y)
+    noteFrame.label:SetPoint("TOPLEFT", noteFrame, "TOPLEFT", accentW + NOTE_PAD_X, -NOTE_PAD_Y)
 
     local textH   = math.ceil(noteFrame.label:GetStringHeight() or noteFrame.label:GetHeight() or 16)
     local totalH  = textH + NOTE_PAD_Y * 2
-    noteFrame:SetSize(contentWidth, totalH)
+    noteFrame:SetSize(noteWidth, totalH)
     noteFrame.totalHeight = totalH
+end
+
+local function ApplyIntroPanelLayout(panel, text, contentWidth, align)
+    if type(panel) ~= "table" or not panel.label then
+        return 0
+    end
+
+    local innerW = math.max(contentWidth - PAGE_INTRO_PAD_X * 2, 120)
+    panel.label:SetWidth(innerW)
+    panel.label:SetText(text or "")
+    panel.label:SetJustifyH(ResolveJustifyH(align, "CENTER"))
+    panel.label:ClearAllPoints()
+    panel.label:SetPoint("TOPLEFT", panel, "TOPLEFT", PAGE_INTRO_PAD_X, -PAGE_INTRO_PAD_Y)
+
+    local textH = math.ceil(panel.label:GetStringHeight() or panel.label:GetHeight() or 16)
+    local totalH = textH + PAGE_INTRO_PAD_Y * 2
+    panel:SetSize(contentWidth, totalH)
+    panel.totalHeight = totalH
+    return totalH
 end
 
 local function AcquireImageRow(frameRef)
@@ -513,23 +574,40 @@ local function LayoutPage(frameRef, pageIndex, resetScroll)
     frameRef.currentPageIndex = pageIndex
     frameRef.content:SetWidth(contentWidth)
 
-    frameRef.pageTitle:SetWidth(contentWidth)
-    frameRef.pageTitle:SetText(tostring(page.title or "Help"))
-
     local cursorY = -CONTENT_TOP_PADDING
 
-    frameRef.pageTitle:ClearAllPoints()
-    frameRef.pageTitle:SetPoint("TOPLEFT", frameRef.content, "TOPLEFT", 0, cursorY)
-    cursorY = cursorY - math.ceil(frameRef.pageTitle:GetStringHeight() or frameRef.pageTitle:GetHeight() or 0) - 6
+    if page.hideTitle == true or page.showTitle == false or page.title == false then
+        frameRef.pageTitle:Hide()
+        frameRef.pageTitleGlow:Hide()
+    else
+        frameRef.pageTitle:SetWidth(contentWidth)
+        frameRef.pageTitle:SetText(tostring(page.title or "Help"))
+        frameRef.pageTitle:ClearAllPoints()
+        frameRef.pageTitle:SetPoint("TOP", frameRef.content, "TOP", 0, cursorY)
+        frameRef.pageTitle:Show()
+
+        local titleH = math.ceil(frameRef.pageTitle:GetStringHeight() or frameRef.pageTitle:GetHeight() or 0)
+        cursorY = cursorY - titleH - 2
+
+        local pageGlowW = math.min(PAGE_GLOW_W, math.max(contentWidth - 80, 80))
+        ApplyGlowLine(frameRef.pageTitleGlow, pageGlowW, PAGE_GLOW_H, 0.94)
+        frameRef.pageTitleGlow:ClearAllPoints()
+        frameRef.pageTitleGlow:SetPoint("TOP", frameRef.content, "TOP", 0, cursorY)
+        frameRef.pageTitleGlow:Show()
+        cursorY = cursorY - PAGE_GLOW_H - 8
+    end
 
     if type(page.intro) == "string" and page.intro ~= "" then
-        frameRef.pageIntro:SetWidth(contentWidth)
-        frameRef.pageIntro:SetText(page.intro)
-        frameRef.pageIntro:ClearAllPoints()
-        frameRef.pageIntro:SetPoint("TOPLEFT", frameRef.content, "TOPLEFT", 0, cursorY)
+        local introW = math.min(contentWidth, math.max(260, contentWidth - 40))
+        local introX = math.floor(math.max(contentWidth - introW, 0) / 2)
+        local introH = ApplyIntroPanelLayout(frameRef.pageIntroPanel, page.intro, introW, page.introAlign or "CENTER")
+        frameRef.pageIntroPanel:ClearAllPoints()
+        frameRef.pageIntroPanel:SetPoint("TOPLEFT", frameRef.content, "TOPLEFT", introX, cursorY)
+        frameRef.pageIntroPanel:Show()
         frameRef.pageIntro:Show()
-        cursorY = cursorY - math.ceil(frameRef.pageIntro:GetStringHeight() or frameRef.pageIntro:GetHeight() or 0) - 12
+        cursorY = cursorY - math.max(introH or 0, frameRef.pageIntroPanel.totalHeight or 0) - 16
     else
+        frameRef.pageIntroPanel:Hide()
         frameRef.pageIntro:Hide()
     end
 
@@ -546,11 +624,12 @@ local function LayoutPage(frameRef, pageIndex, resetScroll)
             local textH = math.ceil(widget:GetStringHeight() or widget:GetHeight() or 0)
 
             local line = AcquireHeadingLine(frameRef)
+            local lineW = math.min(HEADING_GLOW_W, math.max(contentWidth - 120, 90))
             line:ClearAllPoints()
-            line:SetPoint("TOPLEFT",  frameRef.content, "TOPLEFT", 0,            cursorY - textH - 4)
-            line:SetPoint("TOPRIGHT", frameRef.content, "TOPLEFT", contentWidth, cursorY - textH - 4)
+            line:SetSize(lineW, HEADING_GLOW_H)
+            line:SetPoint("TOP", frameRef.content, "TOP", 0, cursorY - textH - 3)
 
-            cursorY = cursorY - textH - 5 - (tonumber(block.spacingAfter) or BLOCK_SPACING)
+            cursorY = cursorY - textH - HEADING_GLOW_H - 3 - (tonumber(block.spacingAfter) or BLOCK_SPACING)
         elseif block.type == "text" then
             local widget = AcquireText(frameRef)
             ApplyTextStyle(widget, "body")
@@ -561,9 +640,16 @@ local function LayoutPage(frameRef, pageIndex, resetScroll)
             cursorY = cursorY - math.ceil(widget:GetStringHeight() or widget:GetHeight() or 0) - (tonumber(block.spacingAfter) or BLOCK_SPACING)
         elseif block.type == "note" then
             local widget = AcquireNoteBlock(frameRef)
-            ApplyNoteBlockLayout(widget, tostring(block.text or ""), contentWidth)
+            ApplyNoteBlockLayout(widget, tostring(block.text or ""), contentWidth, block)
             widget:ClearAllPoints()
-            widget:SetPoint("TOPLEFT", frameRef.content, "TOPLEFT", 0, cursorY)
+            local noteWidth = widget:GetWidth() or contentWidth
+            local offsetX = 0
+            if block.align == "CENTER" or block.align == "center" then
+                offsetX = math.floor(math.max(contentWidth - noteWidth, 0) / 2)
+            elseif block.align == "RIGHT" or block.align == "right" then
+                offsetX = math.max(contentWidth - noteWidth, 0)
+            end
+            widget:SetPoint("TOPLEFT", frameRef.content, "TOPLEFT", offsetX, cursorY)
             cursorY = cursorY - widget.totalHeight - (tonumber(block.spacingAfter) or BLOCK_SPACING)
         elseif block.type == "divider" then
             local divider = AcquireDivider(frameRef)
@@ -618,88 +704,58 @@ local function ShowPage(frameRef, pageRef, resetScroll)
     LayoutPage(frameRef, pageIndex, resetScroll ~= false)
 end
 
+local TITLE_H  = 44
+local FOOTER_H = 44
+
 local function GetOrCreateFrame()
     if frame then
         return frame
     end
 
-    frame = CreateFrame("Frame", "ZWPHelpFrame", UIParent, "ButtonFrameTemplate")
-    frame:SetAlpha(0.95)
+    -- Base frame
+    frame = CreateFrame("Frame", "AWPHelpFrame", UIParent)
     frame:SetSize(FRAME_WIDTH, FRAME_HEIGHT)
     frame:SetPoint("CENTER")
-    frame:SetFrameStrata("DIALOG")
+    frame:SetFrameStrata("MEDIUM")
     frame:SetClampedToScreen(true)
     frame:SetMovable(true)
+    frame:SetToplevel(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    frame:SetScript("OnDragStop",  frame.StopMovingOrSizing)
     frame:Hide()
 
-    local titleText = GetFrameTitleText(frame)
-    if titleText then
-        titleText:SetText(FRAME_TITLE)
-    end
+    local versionStr = type(NS.GetAddonMetadataValue) == "function"
+        and NS.GetAddonMetadataValue("Version", "") or ""
+    local shell = FW.CreatePanelShell(frame, {
+        title = FRAME_TITLE,
+        titleHeight = TITLE_H,
+        footerHeight = FOOTER_H,
+        titleColor = FW.COLORS.closeTextHover,
+        versionText = versionStr ~= "" and ("v" .. versionStr) or nil,
+        movable = true,
+        closeButton = true,
+        closeSize = 28,
+        closeOffsetX = -10,
+        onClose = function() frame:Hide() end,
+    })
+    local footerFrame = shell.footerFrame
 
-    local portrait = GetFramePortrait(frame)
-    if portrait then
-        portrait:SetTexture(PORTRAIT_TEXTURE)
-    end
-
-    local bg = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
-    bg:SetPoint("TOPLEFT",     frame, "TOPLEFT",          8,  -8)
-    bg:SetPoint("BOTTOMRIGHT", frame.Inset, "BOTTOMRIGHT", 0,  0)
-    bg:SetColorTexture(0.07, 0.07, 0.07, 0.85)
-
-    frame.scroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-    frame.scroll:SetPoint("TOPLEFT", frame.Inset, "TOPLEFT", 12, -12)
-    frame.scroll:SetPoint("BOTTOMRIGHT", frame.Inset, "BOTTOMRIGHT", -28, 50)
-    frame.scroll:EnableMouseWheel(true)
-    frame.scroll:SetScript("OnMouseWheel", function(self, delta)
-        local current = self:GetVerticalScroll() or 0
-        local range = self:GetVerticalScrollRange() or 0
-        local target = Clamp(current - (delta * SCROLL_STEP), 0, range)
-        self:SetVerticalScroll(target)
-    end)
-
-    frame.content = CreateFrame("Frame", nil, frame.scroll)
-    frame.content:SetPoint("TOPLEFT", frame.scroll, "TOPLEFT", 0, 0)
-    frame.content:SetSize(DEFAULT_CONTENT_WIDTH, 1)
-    frame.scroll:SetScrollChild(frame.content)
-
-    frame.pageTitle = frame.content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    frame.pageTitle:SetJustifyH("LEFT")
-    frame.pageTitle:SetJustifyV("TOP")
-    frame.pageTitle:SetWordWrap(true)
-
-    frame.pageIntro = frame.content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    frame.pageIntro:SetJustifyH("LEFT")
-    frame.pageIntro:SetJustifyV("TOP")
-    frame.pageIntro:SetWordWrap(true)
-    frame.pageIntro:SetSpacing(3)
-    frame.pageIntro:SetTextColor(0.95, 0.95, 0.85, 1)
-
-    frame.textPool        = { nextIndex = 1 }
-    frame.dividerPool     = { nextIndex = 1 }
-    frame.imagePool       = { nextIndex = 1 }
-    frame.rowPool         = { nextIndex = 1 }
-    frame.notePool        = { nextIndex = 1 }
-    frame.headingLinePool = { nextIndex = 1 }
-
-    frame.prevButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.prevButton:SetSize(90, 24)
-    frame.prevButton:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 18, 12)
-    frame.prevButton:SetText("Previous")
+    frame.prevButton = FW.CreatePanelButton(footerFrame, { height = 28 })
+    frame.prevButton:SetSize(110, 28)
+    frame.prevButton:SetPoint("LEFT", footerFrame, "LEFT", 14, 0)
+    frame.prevButton:SetDisplayText("Previous")
     frame.prevButton:SetScript("OnClick", function()
         if frame.currentPageIndex and frame.currentPageIndex > 1 then
             ShowPage(frame, frame.currentPageIndex - 1, true)
         end
     end)
 
-    frame.nextButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-    frame.nextButton:SetSize(90, 24)
-    frame.nextButton:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -18, 12)
-    frame.nextButton:SetText("Next")
+    frame.nextButton = FW.CreatePanelButton(footerFrame, { height = 28 })
+    frame.nextButton:SetSize(110, 28)
+    frame.nextButton:SetPoint("RIGHT", footerFrame, "RIGHT", -14, 0)
+    frame.nextButton:SetDisplayText("Next")
     frame.nextButton:SetScript("OnClick", function()
         local pages = GetHelpPages()
         if frame.currentPageIndex and frame.currentPageIndex < #pages then
@@ -707,9 +763,76 @@ local function GetOrCreateFrame()
         end
     end)
 
-    frame.pageNum = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    frame.pageNum:SetPoint("BOTTOM", frame, "BOTTOM", 0, 18)
+    frame.pageNum = footerFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    frame.pageNum:SetPoint("CENTER", footerFrame, "CENTER", 0, 0)
+    frame.pageNum:SetTextColor(0.72, 0.66, 0.58, 1.0)
 
+    -- Scroll area
+    frame.scroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+    frame.scroll:SetPoint("TOPLEFT",     frame, "TOPLEFT",     14, -(TITLE_H + 12))
+    frame.scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -22, FOOTER_H + 12)
+    frame.scroll:EnableMouseWheel(true)
+    frame.scroll:SetScript("OnMouseWheel", function(self, delta)
+        local current = self:GetVerticalScroll() or 0
+        local range   = self:GetVerticalScrollRange() or 0
+        local target  = Clamp(current - (delta * SCROLL_STEP), 0, range)
+        self:SetVerticalScroll(target)
+    end)
+
+    FW.StyleScrollBar(frame.scroll, {
+        trackInsetTop = 4,
+        trackInsetBottom = 4,
+        width = 6,
+        hitRect = false,
+    })
+
+    frame.content = CreateFrame("Frame", nil, frame.scroll)
+    frame.content:SetPoint("TOPLEFT", frame.scroll, "TOPLEFT", 0, 0)
+    frame.content:SetSize(DEFAULT_CONTENT_WIDTH, 1)
+    frame.scroll:SetScrollChild(frame.content)
+
+    -- Page header widgets
+    frame.pageTitle = frame.content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    frame.pageTitle:SetJustifyH("CENTER")
+    frame.pageTitle:SetJustifyV("TOP")
+    frame.pageTitle:SetWordWrap(true)
+    frame.pageTitle:SetTextColor(1.0, 0.82, 0.0, 1.0)
+
+    frame.pageTitleGlow = frame.content:CreateTexture(nil, "ARTWORK")
+    ApplyGlowLine(frame.pageTitleGlow, PAGE_GLOW_W, PAGE_GLOW_H, 0.94)
+
+    frame.pageIntroPanel = CreateFrame("Frame", nil, frame.content)
+    frame.pageIntroPanel.bg = frame.pageIntroPanel:CreateTexture(nil, "BACKGROUND")
+    frame.pageIntroPanel.bg:SetAllPoints()
+    frame.pageIntroPanel.bg:SetColorTexture(PAGE_INTRO_BG[1], PAGE_INTRO_BG[2], PAGE_INTRO_BG[3], PAGE_INTRO_BG[4])
+    frame.pageIntroPanel.borderTop = frame.pageIntroPanel:CreateTexture(nil, "BORDER")
+    frame.pageIntroPanel.borderTop:SetColorTexture(PAGE_INTRO_BORDER[1], PAGE_INTRO_BORDER[2], PAGE_INTRO_BORDER[3], PAGE_INTRO_BORDER[4])
+    frame.pageIntroPanel.borderTop:SetPoint("TOPLEFT", frame.pageIntroPanel, "TOPLEFT", 0, 0)
+    frame.pageIntroPanel.borderTop:SetPoint("TOPRIGHT", frame.pageIntroPanel, "TOPRIGHT", 0, 0)
+    frame.pageIntroPanel.borderTop:SetHeight(1)
+    frame.pageIntroPanel.borderBottom = frame.pageIntroPanel:CreateTexture(nil, "BORDER")
+    frame.pageIntroPanel.borderBottom:SetColorTexture(PAGE_INTRO_BORDER[1], PAGE_INTRO_BORDER[2], PAGE_INTRO_BORDER[3], PAGE_INTRO_BORDER[4])
+    frame.pageIntroPanel.borderBottom:SetPoint("BOTTOMLEFT", frame.pageIntroPanel, "BOTTOMLEFT", 0, 0)
+    frame.pageIntroPanel.borderBottom:SetPoint("BOTTOMRIGHT", frame.pageIntroPanel, "BOTTOMRIGHT", 0, 0)
+    frame.pageIntroPanel.borderBottom:SetHeight(1)
+
+    frame.pageIntro = frame.pageIntroPanel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    frame.pageIntroPanel.label = frame.pageIntro
+    frame.pageIntro:SetJustifyH("LEFT")
+    frame.pageIntro:SetJustifyV("TOP")
+    frame.pageIntro:SetWordWrap(true)
+    frame.pageIntro:SetSpacing(3)
+    frame.pageIntro:SetTextColor(0.95, 0.95, 0.85, 1)
+
+    -- Pools
+    frame.textPool        = { nextIndex = 1 }
+    frame.dividerPool     = { nextIndex = 1 }
+    frame.imagePool       = { nextIndex = 1 }
+    frame.rowPool         = { nextIndex = 1 }
+    frame.notePool        = { nextIndex = 1 }
+    frame.headingLinePool = { nextIndex = 1 }
+
+    -- Scripts
     frame:SetScript("OnShow", function(self)
         C_Timer.After(0, function()
             if self and self:IsShown() then

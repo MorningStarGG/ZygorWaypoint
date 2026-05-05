@@ -1,4 +1,4 @@
-local NS = _G.ZygorWaypointNS
+local NS = _G.AzerothWaypointNS
 local state = NS.State
 local M = NS.Internal.Interface.commands
 local trim = M.trim
@@ -128,12 +128,12 @@ local function getDefaultPlaqueWidth(native)
 end
 
 local function showPlaqueUsage()
-    NS.Msg("Usage: /zwp plaque [width] | /zwp plaque short [width] | /zwp plaque wrap [width] | /zwp plaque off")
-    NS.Msg("Examples: /zwp plaque 224 | /zwp plaque wrap 224 | /zwp plaque off")
+    NS.Msg("Usage: /awp plaque [width] | /awp plaque short [width] | /awp plaque wrap [width] | /awp plaque off")
+    NS.Msg("Examples: /awp plaque 224 | /awp plaque wrap 224 | /awp plaque off")
 end
 
 local function restorePlaqueTest()
-    local nativeState = NS.State.worldOverlayNative
+    local nativeState = NS.State.WorldOverlay
 
     plaqueState.active = false
 
@@ -148,7 +148,7 @@ local function restorePlaqueTest()
 end
 
 local function showPlaqueTest(variant, width)
-    local native = NS.Internal.WorldOverlayNative
+    local native = NS.Internal.WorldOverlay
     if not native then
         NS.Msg("[PLAQUE] Native overlay is unavailable.")
         return
@@ -183,7 +183,7 @@ local function showPlaqueTest(variant, width)
     frame:SetAlpha(1)
 
     local function restoreDefaultTextColor(fontString)
-        local color = fontString and fontString.__zwpDefaultTextColor or nil
+        local color = fontString and fontString.__awpDefaultTextColor or nil
         if not fontString or not color then
             return
         end
@@ -241,10 +241,6 @@ local function showPlaqueTest(variant, width)
     end
     frame:SetWidth(width)
     native.LayoutPinpointText(frame, width)
-
-    plaqueState.active = true
-    plaqueState.width = width
-    plaqueState.variant = variant
 
     NS.Msg(string.format(
         "[PLAQUE] %s test at %d px, scale %.2f. Panel height: %d",
@@ -350,6 +346,10 @@ local function getWaytypeQuestTypeDefs(native)
     return native and native.Config and native.Config.QUEST_ICON_TYPE_DEFS or nil
 end
 
+local function getWaytypeGossipTypeDefs(native)
+    return native and native.Config and native.Config.GOSSIP_ICON_TYPE_DEFS or nil
+end
+
 local function getWaytypeQuestTypeMap(native)
     local defs = getWaytypeQuestTypeDefs(native)
     local map = {}
@@ -375,6 +375,7 @@ local function getWaytypeGenericIconMap(native)
     local map = {}
     local keys = {}
     local iconSpecs = native and native.Config and native.Config.ICON_SPECS or nil
+    local gossipTypeDefs = getWaytypeGossipTypeDefs(native)
 
     if type(iconSpecs) == "table" then
         for key in pairs(iconSpecs) do
@@ -383,12 +384,21 @@ local function getWaytypeGenericIconMap(native)
         end
     end
 
+    if type(gossipTypeDefs) == "table" then
+        for key in pairs(gossipTypeDefs) do
+            if type(key) == "string" and map[normalizeWaytypeToken(key)] == nil then
+                map[normalizeWaytypeToken(key)] = key
+                keys[#keys + 1] = key
+            end
+        end
+    end
+
     table.sort(keys)
     return map, keys
 end
 
 local function restoreDefaultTextColor(fontString)
-    local color = fontString and fontString.__zwpDefaultTextColor or nil
+    local color = fontString and fontString.__awpDefaultTextColor or nil
     if not fontString or not color then
         return
     end
@@ -444,24 +454,24 @@ local function formatWaytypeQuestLabel(statusPrefix, typeKey)
 end
 
 local function showWaytypeUsage()
-    local native = NS.Internal.WorldOverlayNative
+    local native = NS.Internal.WorldOverlay
     local _, genericKeys = getWaytypeGenericIconMap(native)
     local _, questTypeKeys = getWaytypeQuestTypeMap(native)
 
-    NS.Msg("Usage: /zwp waytype")
-    NS.Msg("       /zwp waytype <generic-key>")
+    NS.Msg("Usage: /awp waytype")
+    NS.Msg("       /awp waytype <generic-key>")
     if #genericKeys > 0 then
         NS.Msg("       generic keys: " .. table.concat(genericKeys, ", "))
     end
-    NS.Msg("       /zwp waytype <available|incomplete|complete> <quest-type>")
+    NS.Msg("       /awp waytype <available|incomplete|complete> <quest-type>")
     if #questTypeKeys > 0 then
         NS.Msg("       quest types: " .. table.concat(questTypeKeys, ", "))
     end
-    NS.Msg("       /zwp waytype quest <questID> | /zwp waytype off")
+    NS.Msg("       /awp waytype quest <questID> | /awp waytype off")
 end
 
 local function restoreWaytypePreview()
-    local nativeState = NS.State.worldOverlayNative
+    local nativeState = NS.State.WorldOverlay
 
     waytypeState.active = false
     waytypeState.key = nil
@@ -490,11 +500,18 @@ local function getGenericWaytypeIconSpec(native, key)
         end
     end
 
+    if native.ResolveGossipIconSpec then
+        local gossipSpec = native.ResolveGossipIconSpec(key)
+        if gossipSpec then
+            return gossipSpec
+        end
+    end
+
     return native.Config and native.Config.ICON_SPECS and native.Config.ICON_SPECS[key] or nil
 end
 
 local function showWaytypePreview(info)
-    local native = NS.Internal.WorldOverlayNative
+    local native = NS.Internal.WorldOverlay
     if not native then
         NS.Msg("[WAYTYPE] Native overlay is unavailable.")
         return
@@ -622,7 +639,7 @@ local function buildWaytypeInfoFromState(native, targetState)
 
     return {
         backend = NS.GetWorldOverlayBackend(),
-        mode = state.worldOverlayNative and state.worldOverlayNative.derived and state.worldOverlayNative.derived.mode or nil,
+        mode = state.WorldOverlay and state.WorldOverlay.derived and state.WorldOverlay.derived.mode or nil,
         kind = targetState.kind,
         source = targetState.source,
         sourceAddon = contentSnapshot and contentSnapshot.sourceAddon or nil,
@@ -639,7 +656,7 @@ end
 
 local function emitWaytypeInfo(info)
     if type(info) ~= "table" then
-        NS.Msg("[WAYTYPE] No active world overlay target. Use /zwp waytype help for preview syntax.")
+        NS.Msg("[WAYTYPE] No active world overlay target. Use /awp waytype help for preview syntax.")
         return
     end
 
@@ -672,8 +689,9 @@ local function emitWaytypeInfo(info)
 
     if type(contentSnapshot) == "table" then
         NS.Msg(string.format(
-            "[WAYTYPE] snapshot sourceAddon=%s hint=%s hintQuestID=%s guideRoute=%s liveTravel=%s semanticKind=%s semanticQuestID=%s mirrorTitle=%s",
+            "[WAYTYPE] snapshot sourceAddon=%s guideProvider=%s hint=%s hintQuestID=%s guideRoute=%s liveTravel=%s semanticKind=%s semanticQuestID=%s mirrorTitle=%s",
             tostring(contentSnapshot.sourceAddon or "-"),
+            tostring(contentSnapshot.guideProvider or "-"),
             tostring(contentSnapshot.iconHintKind or "-"),
             tostring(info.hintedQuestID or "-"),
             tostring(contentSnapshot.guideRoutePresentation == true),
@@ -696,7 +714,7 @@ local function emitWaytypeInfo(info)
     local questDetails = info.questDetails
     if type(questDetails) == "table" then
         NS.Msg(string.format(
-            "[WAYTYPE] questID=%s type=%s status=%s typeSource=%s subtype=%s classification=%s questTagID=%s questTag=%s questType=%s active=%s ready=%s repeatable=%s",
+            "[WAYTYPE] questID=%s type=%s status=%s typeSource=%s subtype=%s classification=%s questTagID=%s questTag=%s questType=%s worldQuestType=%s active=%s ready=%s repeatable=%s",
             tostring(questDetails.questID or "-"),
             tostring(questDetails.typeKey or "-"),
             tostring(questDetails.statusPrefix or "-"),
@@ -706,6 +724,7 @@ local function emitWaytypeInfo(info)
             tostring(questDetails.questTagID or "-"),
             tostring(questDetails.questTagName or "-"),
             tostring(questDetails.questTypeName or questDetails.questType or "-"),
+            tostring(questDetails.worldQuestTypeName or questDetails.worldQuestType or "-"),
             tostring(questDetails.isActive == true),
             tostring(questDetails.isCompleted == true),
             tostring(questDetails.isRepeatable == true)
@@ -721,7 +740,7 @@ local function emitWaytypeInfo(info)
 end
 
 local function getCurrentWaytypeInfo()
-    local native = NS.Internal.WorldOverlayNative
+    local native = NS.Internal.WorldOverlay
     if not native then
         return nil
     end
@@ -737,7 +756,7 @@ local function getCurrentWaytypeInfo()
         return buildWaytypeInfoFromState(native, worldOverlay)
     end
 
-    local nativeState = state.worldOverlayNative
+    local nativeState = state.WorldOverlay
     local nativeTarget = nativeState and nativeState.target or nil
     if type(nativeTarget) == "table" and nativeTarget.active then
         return buildWaytypeInfoFromState(native, nativeTarget)
@@ -810,7 +829,7 @@ local function buildGenericWaytypePreview(native, key)
 end
 
 local function resolveWaytypePreviewInfo(arg)
-    local native = NS.Internal.WorldOverlayNative
+    local native = NS.Internal.WorldOverlay
     if not native then
         return nil, "Native overlay is unavailable."
     end
@@ -826,7 +845,7 @@ local function resolveWaytypePreviewInfo(arg)
     if firstWord == "quest" then
         local questID = tonumber(words[2] or "")
         if not questID then
-            return nil, "Usage: /zwp waytype quest <questID>"
+            return nil, "Usage: /awp waytype quest <questID>"
         end
         local questDetails = native.ResolveQuestTypeDetails and native.ResolveQuestTypeDetails(questID) or nil
         local typeKey = questDetails and questDetails.typeKey or "Default"
@@ -867,7 +886,7 @@ local function resolveWaytypePreviewInfo(arg)
         end
     end
 
-    return nil, "Unknown waytype preview. Use /zwp waytype help."
+    return nil, "Unknown waytype preview. Use /awp waytype help."
 end
 
 local function handleWaytype(arg)
@@ -899,7 +918,7 @@ local function handleWaytype(arg)
     emitWaytypeInfo(info)
     showWaytypePreview(info)
     NS.Msg(string.format(
-        "[WAYTYPE] Previewing %s. Use /zwp waytype off to restore the live native overlay.",
+        "[WAYTYPE] Previewing %s. Use /awp waytype off to restore the live native overlay.",
         tostring(info.label or info.iconSpec and info.iconSpec.key or "preview")
     ))
 end
@@ -916,35 +935,51 @@ local diagState = {
 }
 
 local function diagSnapshot()
-    local Z = NS.ZGV()
+    local Z = type(NS.ZGV) == "function" and NS.ZGV() or nil
     local P = Z and Z.Pointer
     local af = P and P.ArrowFrame
     local tom = _G["TomTomCrazyArrow"]
-    local b = state.bridge
-    local won = NS.State.worldOverlayNative
-    local wod = won.derived
+    local won = state.WorldOverlay or {}
+    local wod = type(won.derived) == "table" and won.derived or {}
+    local routing = state.routing or {}
 
-    local ic = InCinematic()
-    local ics = IsInCinematicScene()
-    local uip = UIParent:IsShown()
+    local ic = type(InCinematic) == "function" and InCinematic() or false
+    local ics = type(IsInCinematicScene) == "function" and IsInCinematicScene() or false
+    local uip = UIParent and UIParent.IsShown and UIParent:IsShown() or false
     local zfv = Z and Z.Frame and Z.Frame:IsVisible() or false
     local afv = af and af:IsShown() or false
     local tmv = tom and tom:IsShown() or false
-    local ca = b.cinematicActive and true or false
-    local gvs = b.guideVisibilityState or "nil"
-    local wob = NS.GetWorldOverlayBackend()
+    local ca = routing.cinematicActive and true or false
+    local gvs = type(NS.GetGuideVisibilityState) == "function" and NS.GetGuideVisibilityState() or "nil"
+    local wob = type(NS.GetWorldOverlayBackend) == "function" and NS.GetWorldOverlayBackend() or "nil"
     local wom = wod.mode or "nil"
-    local wor = won.root and won.root:IsShown() or false
-    local wof = wod.navFrame and wod.navFrame:IsShown() or false
-    local wouw = type(C_Map.HasUserWaypoint) == "function" and C_Map.HasUserWaypoint() or false
-    local wostu = type(C_SuperTrack.IsSuperTrackingUserWaypoint) == "function" and C_SuperTrack.IsSuperTrackingUserWaypoint() or false
+    local wor = won.root and won.root.IsShown and won.root:IsShown() or false
+    local wof = wod.navFrame and wod.navFrame.IsShown and wod.navFrame:IsShown() or false
+    local wouw = type(C_Map) == "table" and type(C_Map.HasUserWaypoint) == "function" and C_Map.HasUserWaypoint() or false
+    local wostu = type(C_SuperTrack) == "table"
+        and type(C_SuperTrack.IsSuperTrackingUserWaypoint) == "function"
+        and C_SuperTrack.IsSuperTrackingUserWaypoint()
+        or false
+    local rb = routing.selectedBackend or "-"
+    local ra, raBackend
+    if routing.manualAuthority then
+        ra = "manual"
+        raBackend = routing.manualAuthority.backend or "-"
+    elseif routing.guideRouteState then
+        ra = "guide"
+        raBackend = routing.guideRouteState.backend or "-"
+    else
+        ra = "none"
+        raBackend = "-"
+    end
 
     return string.format(
-        "IC:%s ICS:%s UIP:%s ZF:%s AF:%s TT:%s CA:%s GVS:%s WO:%s WM:%s WR:%s WNF:%s UW:%s STU:%s",
+        "IC:%s ICS:%s UIP:%s ZF:%s AF:%s TT:%s CA:%s GVS:%s WO:%s WM:%s WR:%s WNF:%s UW:%s STU:%s RB:%s RA:%s/%s",
         tostring(ic), tostring(ics), tostring(uip),
         tostring(zfv), tostring(afv), tostring(tmv),
         tostring(ca), gvs, tostring(wob), tostring(wom),
-        tostring(wor), tostring(wof), tostring(wouw), tostring(wostu)
+        tostring(wor), tostring(wof), tostring(wouw), tostring(wostu),
+        tostring(rb), tostring(ra), tostring(raBackend)
     )
 end
 
@@ -1104,25 +1139,452 @@ local travelDiagState = {
     elapsed = 0,
 }
 
+local function formatDiagNumber(value, precision)
+    if type(value) ~= "number" then
+        return "-"
+    end
+    return string.format("%." .. tostring(precision or 4) .. "f", value)
+end
+
+local function shortDiagValue(value, maxLen)
+    value = tostring(value or "-")
+    maxLen = maxLen or 24
+    if #value <= maxLen then
+        return value
+    end
+    return value:sub(1, maxLen) .. "..."
+end
+
+local function describeRouteEnvironment()
+    local env = type(NS.GetRouteEnvironmentSnapshot) == "function" and NS.GetRouteEnvironmentSnapshot() or nil
+    if type(env) ~= "table" then
+        return "ENV=nil"
+    end
+    return string.format(
+        "ENV{indoors=%s zone=%s real=%s sub=%s mini=%s}",
+        tostring(env.indoors),
+        tostring(env.zone or "-"),
+        tostring(env.realzone or "-"),
+        tostring(env.subzone or "-"),
+        tostring(env.minizone or "-")
+    )
+end
+
+local function describeArrivalGate(leg)
+    local gate = type(leg) == "table" and leg.arrivalGate or nil
+    if type(gate) ~= "table" then
+        return "gate=- match=true"
+    end
+    local matches = type(NS.RouteArrivalGateMatches) == "function" and NS.RouteArrivalGateMatches(leg) or nil
+    return string.format(
+        "gate={indoors=%s zone=%s real=%s sub=%s mini=%s} match=%s",
+        tostring(gate.indoors),
+        tostring(gate.zone or "-"),
+        tostring(gate.realzone or "-"),
+        tostring(gate.subzone or "-"),
+        tostring(gate.minizone or "-"),
+        tostring(matches)
+    )
+end
+
+local function describeCoreLeg(label, leg)
+    if type(leg) ~= "table" then
+        return label .. "=nil"
+    end
+    return string.format(
+        "%s{map=%s x=%s y=%s title=%s kind=%s leg=%s travel=%s %s}",
+        label,
+        tostring(leg.mapID or "-"),
+        formatDiagNumber(leg.x, 4),
+        formatDiagNumber(leg.y, 4),
+        tostring(leg.title or "-"),
+        tostring(leg.kind or "-"),
+        tostring(leg.routeLegKind or "-"),
+        tostring(leg.routeTravelType or "-"),
+        describeArrivalGate(leg)
+    )
+end
+
+local function describeCoreRoute()
+    local routing = state.routing or {}
+    local record = routing.manualAuthority
+    local source = "manual"
+    if not record then
+        record = routing.guideRouteState
+        source = "guide"
+    end
+
+    if type(record) ~= "table" then
+        return "CORE=nil"
+    end
+
+    local legs = type(record.legs) == "table" and #record.legs or 0
+    return string.format(
+        "CORE{source=%s backend=%s idx=%s legs=%s outcome=%s reason=%s reset=%s planning=%s pending=%s fp=%s accept=%s skip=%s skipReason=%s invalidSkip=%s %s %s %s}",
+        source,
+        tostring(record.backend or "-"),
+        tostring(record.currentLegIndex or "-"),
+        tostring(legs),
+        tostring(record.routeOutcome or "-"),
+        tostring(record.replanReason or "-"),
+        tostring(record._coreResetLegOnNextPlan == true),
+        tostring(record._corePlanning == true),
+        tostring(record._coreRoutePending == true),
+        shortDiagValue(record.planFingerprint, 28),
+        tostring(record.planAcceptStatus or "-"),
+        tostring(record.lastPlanSkipStatus or "-"),
+        tostring(record.lastPlanSkipReason or "-"),
+        tostring(record._coreLastBackendInvalidationSkipped or "-"),
+        describeRouteEnvironment(),
+        describeCoreLeg("cur", record.currentLeg),
+        describeCoreLeg("carrier", routing.carrierState)
+    )
+end
+
+local function describeCoreRouteLegs()
+    local routing = state.routing or {}
+    local record = routing.manualAuthority
+    local source = "manual"
+    if not record then
+        record = routing.guideRouteState
+        source = "guide"
+    end
+    if type(record) ~= "table" then
+        return { "[ROUTE] LEGS nil" }
+    end
+    if type(record.legs) ~= "table" or #record.legs == 0 then
+        return { string.format("[ROUTE] LEGS source=%s backend=%s none", source, tostring(record.backend or "-")) }
+    end
+
+    local lines = {
+        string.format(
+            "[ROUTE] LEGS source=%s backend=%s outcome=%s reason=%s count=%d current=%s",
+            source,
+            tostring(record.backend or "-"),
+            tostring(record.routeOutcome or "-"),
+            tostring(record.replanReason or "-"),
+            #record.legs,
+            tostring(record.currentLegIndex or "-")
+        ),
+    }
+    for index = 1, #record.legs do
+        local leg = record.legs[index]
+        lines[#lines + 1] = string.format(
+            "[ROUTE] LEG %d %s",
+            index,
+            describeCoreLeg(index == record.currentLegIndex and "current" or "leg", leg)
+        )
+    end
+    return lines
+end
+
+local function handleRouteDump(arg)
+    arg = type(arg) == "string" and arg:lower() or ""
+    if arg:find("legs", 1, true) then
+        local lines = describeCoreRouteLegs()
+        for index = 1, #lines do
+            NS.Msg(lines[index])
+        end
+        return
+    end
+    NS.Msg("[ROUTE] " .. describeCoreRoute())
+end
+
+local routeEnvTrace = {
+    active = false,
+    frame = nil,
+    originals = nil,
+}
+
+local function unpackResults(results)
+    return unpack(results, 1, results.n or #results)
+end
+
+local function packResults(...)
+    return { n = select("#", ...), ... }
+end
+
+local function getActiveRouteRecord()
+    local routing = state.routing or {}
+    if routing.manualAuthority then
+        return routing.manualAuthority, "manual"
+    end
+    if routing.guideRouteState then
+        return routing.guideRouteState, "guide"
+    end
+    return nil, "-"
+end
+
+local function routeEnvTraceRawFacts()
+    local indoors = nil
+    if type(IsIndoors) == "function" and IsIndoors() then
+        indoors = true
+    elseif type(IsOutdoors) == "function" and IsOutdoors() then
+        indoors = false
+    end
+    return string.format(
+        "raw{indoors=%s zone=%s real=%s sub=%s mini=%s}",
+        tostring(indoors),
+        tostring(type(GetZoneText) == "function" and GetZoneText() or "-"),
+        tostring(type(GetRealZoneText) == "function" and GetRealZoneText() or "-"),
+        tostring(type(GetSubZoneText) == "function" and GetSubZoneText() or "-"),
+        tostring(type(GetMinimapZoneText) == "function" and GetMinimapZoneText() or "-")
+    )
+end
+
+local function routeEnvTraceRecord()
+    local routing = state.routing or {}
+    local record, source = getActiveRouteRecord()
+    if type(record) ~= "table" then
+        return string.format(
+            "state{lastEnv=%s pending=%s reason=%s} rec=nil",
+            tostring(routing._lastRouteEnvironmentChange or "-"),
+            tostring(routing._routeRefreshPending == true),
+            tostring(routing._routeRefreshReason or "-")
+        )
+    end
+
+    local leg = record.currentLeg
+    local match = type(NS.RouteArrivalGateMatches) == "function" and NS.RouteArrivalGateMatches(leg) or nil
+    return string.format(
+        "state{lastEnv=%s pending=%s reason=%s} rec{src=%s backend=%s idx=%s legs=%s outcome=%s reset=%s planning=%s routePending=%s lastRefresh=%s replan=%s accept=%s skip=%s zretry=%s ztimeout=%s cur=%s gateMatch=%s}",
+        tostring(routing._lastRouteEnvironmentChange or "-"),
+        tostring(routing._routeRefreshPending == true),
+        tostring(routing._routeRefreshReason or "-"),
+        tostring(source),
+        tostring(record.backend or "-"),
+        tostring(record.currentLegIndex or "-"),
+        tostring(type(record.legs) == "table" and #record.legs or 0),
+        tostring(record.routeOutcome or "-"),
+        tostring(record._coreResetLegOnNextPlan == true),
+        tostring(record._corePlanning == true),
+        tostring(record._coreRoutePending == true),
+        tostring(record._coreLastRefreshReason or "-"),
+        tostring(record.replanReason or "-"),
+        tostring(record.planAcceptStatus or "-"),
+        tostring(record.lastPlanSkipStatus or "-"),
+        tostring(record._zygorPlanRetryCount or "-"),
+        tostring(record._zygorLastPlanTimeoutReason or "-"),
+        shortDiagValue(leg and leg.title or "-", 32),
+        tostring(match)
+    )
+end
+
+local function routeEnvTraceLog(label)
+    NS.Msg(string.format(
+        "[ROUTEENV] %s | %s | %s | %s",
+        tostring(label or "-"),
+        routeEnvTraceRawFacts(),
+        describeRouteEnvironment(),
+        routeEnvTraceRecord()
+    ))
+end
+
+local function routeEnvTraceAfter(label, delay)
+    local schedule = type(NS.After) == "function" and NS.After or nil
+    if schedule then
+        schedule(delay, function()
+            if routeEnvTrace.active then
+                routeEnvTraceLog(label)
+            end
+        end)
+    elseif type(C_Timer) == "table" and type(C_Timer.After) == "function" then
+        C_Timer.After(delay, function()
+            if routeEnvTrace.active then
+                routeEnvTraceLog(label)
+            end
+        end)
+    end
+end
+
+local function installRouteEnvTraceWrappers()
+    if routeEnvTrace.originals then
+        return
+    end
+
+    local originals = {
+        NoteRouteEnvironmentChanged = NS.NoteRouteEnvironmentChanged,
+        ScheduleActiveRouteRefresh = NS.ScheduleActiveRouteRefresh,
+        RefreshActiveRoutePlans = NS.RefreshActiveRoutePlans,
+        AcceptBackendPlan = NS.AcceptBackendPlan,
+    }
+    routeEnvTrace.originals = originals
+
+    if type(originals.NoteRouteEnvironmentChanged) == "function" then
+        NS.NoteRouteEnvironmentChanged = function(reason)
+            routeEnvTraceLog("CALL NoteEnv pre " .. tostring(reason or "-"))
+            local results = packResults(originals.NoteRouteEnvironmentChanged(reason))
+            routeEnvTraceLog("CALL NoteEnv post " .. tostring(reason or "-"))
+            return unpackResults(results)
+        end
+    end
+
+    if type(originals.ScheduleActiveRouteRefresh) == "function" then
+        NS.ScheduleActiveRouteRefresh = function(reason)
+            routeEnvTraceLog("CALL ScheduleRefresh pre " .. tostring(reason or "-"))
+            local results = packResults(originals.ScheduleActiveRouteRefresh(reason))
+            routeEnvTraceLog("CALL ScheduleRefresh post " .. tostring(reason or "-"))
+            return unpackResults(results)
+        end
+    end
+
+    if type(originals.RefreshActiveRoutePlans) == "function" then
+        NS.RefreshActiveRoutePlans = function(reason)
+            routeEnvTraceLog("CALL RefreshPlans pre " .. tostring(reason or "-"))
+            local results = packResults(originals.RefreshActiveRoutePlans(reason))
+            routeEnvTraceLog("CALL RefreshPlans post " .. tostring(reason or "-"))
+            return unpackResults(results)
+        end
+    end
+
+    if type(originals.AcceptBackendPlan) == "function" then
+        NS.AcceptBackendPlan = function(record, backendID, legs, reason, serial)
+            routeEnvTraceLog(string.format(
+                "CALL AcceptPlan pre backend=%s reason=%s legs=%s serial=%s",
+                tostring(backendID or "-"),
+                tostring(reason or "-"),
+                tostring(type(legs) == "table" and #legs or "-"),
+                tostring(serial or "-")
+            ))
+            local results = packResults(originals.AcceptBackendPlan(record, backendID, legs, reason, serial))
+            routeEnvTraceLog(string.format(
+                "CALL AcceptPlan post backend=%s reason=%s",
+                tostring(backendID or "-"),
+                tostring(reason or "-")
+            ))
+            return unpackResults(results)
+        end
+    end
+end
+
+local function uninstallRouteEnvTraceWrappers()
+    local originals = routeEnvTrace.originals
+    if type(originals) ~= "table" then
+        return
+    end
+    NS.NoteRouteEnvironmentChanged = originals.NoteRouteEnvironmentChanged
+    NS.ScheduleActiveRouteRefresh = originals.ScheduleActiveRouteRefresh
+    NS.RefreshActiveRoutePlans = originals.RefreshActiveRoutePlans
+    NS.AcceptBackendPlan = originals.AcceptBackendPlan
+    routeEnvTrace.originals = nil
+end
+
+local function startRouteEnvTrace()
+    if routeEnvTrace.active then
+        routeEnvTraceLog("already-on")
+        return
+    end
+
+    installRouteEnvTraceWrappers()
+    local frame = routeEnvTrace.frame or CreateFrame("Frame")
+    routeEnvTrace.frame = frame
+    frame:UnregisterAllEvents()
+    frame:RegisterEvent("ZONE_CHANGED")
+    frame:RegisterEvent("ZONE_CHANGED_INDOORS")
+    frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+    frame:RegisterEvent("NEW_WMO_CHUNK")
+    frame:RegisterEvent("LOADING_SCREEN_DISABLED")
+    frame:RegisterEvent("UNIT_ENTERING_VEHICLE")
+    frame:RegisterEvent("UNIT_EXITING_VEHICLE")
+    frame:SetScript("OnEvent", function(_, event)
+        routeEnvTraceLog("EVENT " .. tostring(event))
+        routeEnvTraceAfter("AFTER0 " .. tostring(event), 0)
+        routeEnvTraceAfter("AFTER0.25 " .. tostring(event), 0.25)
+        routeEnvTraceAfter("AFTER0.75 " .. tostring(event), 0.75)
+    end)
+    routeEnvTrace.active = true
+    routeEnvTraceLog("ON")
+end
+
+local function stopRouteEnvTrace()
+    local ref = routeEnvTrace.frame --[[@as Frame]]
+    if ref then
+        ref:UnregisterAllEvents()
+        ref:SetScript("OnEvent", nil)
+    end
+    uninstallRouteEnvTraceWrappers()
+    routeEnvTrace.active = false
+    NS.Msg("[ROUTEENV] OFF")
+end
+
+local function handleRouteEnvTrace(arg)
+    arg = trim(arg):lower()
+    if arg == "off" or arg == "stop" then
+        stopRouteEnvTrace()
+    elseif arg == "dump" or arg == "status" then
+        routeEnvTraceLog("DUMP")
+    else
+        startRouteEnvTrace()
+    end
+end
+
+local function describeTravelDiagProvider()
+    local routing = state.routing or {}
+    local record, source = getActiveRouteRecord()
+    local backend = type(record) == "table" and record.backend or routing.selectedBackend
+    local carrier = routing.carrierState
+    return string.format(
+        "PROVIDER=active-route source=%s backend=%s selected=%s carrierSource=%s carrierKind=%s",
+        tostring(source or "-"),
+        tostring(backend or "-"),
+        tostring(routing.selectedBackend or "-"),
+        tostring(type(carrier) == "table" and carrier.source or "-"),
+        tostring(type(carrier) == "table" and carrier.kind or "-")
+    )
+end
+
+local function describeTravelDiagAction()
+    local action = state.routing and state.routing.specialActionState or nil
+    if type(action) ~= "table" then
+        return "ACTION=nil"
+    end
+    return string.format(
+        "ACTION{backend=%s kind=%s secure=%s payload=%s name=%s title=%s dest=%s icon=%s activation=%s radius=%s sig=%s}",
+        tostring(action.sourceBackend or "-"),
+        tostring(action.semanticKind or "-"),
+        tostring(action.secureType or "-"),
+        formatNodeValue(action.securePayload),
+        shortDiagValue(action.name, 32),
+        shortDiagValue(action.title, 32),
+        shortDiagValue(action.destinationName, 32),
+        shortDiagValue(action.iconTexture, 32),
+        tostring(action.activationMode or "-"),
+        tostring(action.activationRadiusYards or "-"),
+        shortDiagValue(action.sig, 32)
+    )
+end
+
+local function shouldShowZygorPointerTravelDiag()
+    local record = getActiveRouteRecord()
+    return type(record) == "table" and record.backend == "zygor"
+end
+
 local function travelDiagSnapshot()
     local Z = NS.ZGV()
     local P = Z and Z.Pointer
     local bridge = state.bridge
-
-    if not P then
-        return "P=nil"
-    end
+    local showZygorPointer = shouldShowZygorPointerTravelDiag()
 
     local parts = {
         "Suppressed=" .. tostring(bridge and bridge.tomtomArrowVisualSuppressed or false),
-        "CurrentSpecial=" .. tostring(NS.IsCurrentZygorSpecialTravelIconActive()),
-        describeWaypoint("AF", P.ArrowFrame and P.ArrowFrame.waypoint),
-        describeWaypoint("AR", P.arrow and P.arrow.waypoint),
-        describeWaypoint("DW", P.DestinationWaypoint),
-        describeWaypoint("WP", P.waypoint),
-        describeWaypoint("CW", P.current_waypoint),
-        describeWaypoint("W1", type(P.waypoints) == "table" and P.waypoints[1] or nil),
+        "CurrentSpecial=" .. tostring(NS.IsActiveSpecialActionPresenting()),
+        describeTravelDiagProvider(),
+        describeTravelDiagAction(),
+        describeCoreRoute(),
     }
+    if showZygorPointer and P then
+        parts[#parts + 1] = "ZYGOR_POINTER=active-backend-debug"
+        parts[#parts + 1] = describeWaypoint("AF", P.ArrowFrame and P.ArrowFrame.waypoint)
+        parts[#parts + 1] = describeWaypoint("AR", P.arrow and P.arrow.waypoint)
+        parts[#parts + 1] = describeWaypoint("DW", P.DestinationWaypoint)
+        parts[#parts + 1] = describeWaypoint("WP", P.waypoint)
+        parts[#parts + 1] = describeWaypoint("CW", P.current_waypoint)
+        parts[#parts + 1] = describeWaypoint("W1", type(P.waypoints) == "table" and P.waypoints[1] or nil)
+    elseif P then
+        parts[#parts + 1] = "ZYGOR_POINTER=inactive activeBackend=" .. tostring((getActiveRouteRecord() or {}).backend or "-")
+    else
+        parts[#parts + 1] = "ZYGOR_POINTER=nil"
+    end
 
     return table.concat(parts, " || ")
 end
@@ -1220,11 +1682,14 @@ end
 
 local function commitFingerprint(diagState)
     local Z = NS.ZGV()
-    local P = Z and Z.Pointer
+    local P = shouldShowZygorPointerTravelDiag() and Z and Z.Pointer or nil
     local bridge = state.bridge
 
     diagState.cfSupp = bridge and bridge.tomtomArrowVisualSuppressed or false
-    diagState.cfSpec = NS.IsCurrentZygorSpecialTravelIconActive()
+    diagState.cfSpec = NS.IsActiveSpecialActionPresenting()
+    diagState.cfProvider = describeTravelDiagProvider()
+    diagState.cfAction = describeTravelDiagAction()
+    diagState.cfCore = describeCoreRoute()
     writeFP(diagState.cfAF, getWaypointFP(P and P.ArrowFrame and P.ArrowFrame.waypoint))
     writeFP(diagState.cfAR, getWaypointFP(P and P.arrow and P.arrow.waypoint))
     writeFP(diagState.cfDW, getWaypointFP(P and P.DestinationWaypoint))
@@ -1235,11 +1700,14 @@ end
 
 local function travelDiagTick()
     local Z = NS.ZGV()
-    local P = Z and Z.Pointer
+    local P = shouldShowZygorPointerTravelDiag() and Z and Z.Pointer or nil
     local diagState = travelDiagState
     local bridge = state.bridge
     local suppressed = bridge and bridge.tomtomArrowVisualSuppressed or false
-    local currentSpecial = NS.IsCurrentZygorSpecialTravelIconActive()
+    local currentSpecial = NS.IsActiveSpecialActionPresenting()
+    local provider = describeTravelDiagProvider()
+    local action = describeTravelDiagAction()
+    local coreRoute = describeCoreRoute()
 
     local afType, afMap, afXi, afYi, afTitle, afArrow, afSurrogate, afMode, afSpell, afItem, afToy, afInit, afArrivalToy, afAtlas, afNodeType, afTemplate, afContext, afNextType, afDescriptorType, afDescriptorConfidence, afDescriptorSource =
         getWaypointFP(P and P.ArrowFrame and P.ArrowFrame.waypoint)
@@ -1256,6 +1724,9 @@ local function travelDiagTick()
 
     local confirmedMatch = suppressed == diagState.cfSupp
         and currentSpecial == diagState.cfSpec
+        and provider == diagState.cfProvider
+        and action == diagState.cfAction
+        and coreRoute == diagState.cfCore
         and matchFP(diagState.cfAF, afType, afMap, afXi, afYi, afTitle, afArrow, afSurrogate, afMode, afSpell, afItem, afToy, afInit, afArrivalToy, afAtlas, afNodeType, afTemplate, afContext, afNextType, afDescriptorType, afDescriptorConfidence, afDescriptorSource)
         and matchFP(diagState.cfAR, arType, arMap, arXi, arYi, arTitle, arArrow, arSurrogate, arMode, arSpell, arItem, arToy, arInit, arArrivalToy, arAtlas, arNodeType, arTemplate, arContext, arNextType, arDescriptorType, arDescriptorConfidence, arDescriptorSource)
         and matchFP(diagState.cfDW, dwType, dwMap, dwXi, dwYi, dwTitle, dwArrow, dwSurrogate, dwMode, dwSpell, dwItem, dwToy, dwInit, dwArrivalToy, dwAtlas, dwNodeType, dwTemplate, dwContext, dwNextType, dwDescriptorType, dwDescriptorConfidence, dwDescriptorSource)
@@ -1270,6 +1741,9 @@ local function travelDiagTick()
 
     local pendingMatch = suppressed == diagState.pdSupp
         and currentSpecial == diagState.pdSpec
+        and provider == diagState.pdProvider
+        and action == diagState.pdAction
+        and coreRoute == diagState.pdCore
         and matchFP(diagState.pdAF, afType, afMap, afXi, afYi, afTitle, afArrow, afSurrogate, afMode, afSpell, afItem, afToy, afInit, afArrivalToy, afAtlas, afNodeType, afTemplate, afContext, afNextType, afDescriptorType, afDescriptorConfidence, afDescriptorSource)
         and matchFP(diagState.pdAR, arType, arMap, arXi, arYi, arTitle, arArrow, arSurrogate, arMode, arSpell, arItem, arToy, arInit, arArrivalToy, arAtlas, arNodeType, arTemplate, arContext, arNextType, arDescriptorType, arDescriptorConfidence, arDescriptorSource)
         and matchFP(diagState.pdDW, dwType, dwMap, dwXi, dwYi, dwTitle, dwArrow, dwSurrogate, dwMode, dwSpell, dwItem, dwToy, dwInit, dwArrivalToy, dwAtlas, dwNodeType, dwTemplate, dwContext, dwNextType, dwDescriptorType, dwDescriptorConfidence, dwDescriptorSource)
@@ -1285,6 +1759,9 @@ local function travelDiagTick()
     else
         diagState.pdSupp = suppressed
         diagState.pdSpec = currentSpecial
+        diagState.pdProvider = provider
+        diagState.pdAction = action
+        diagState.pdCore = coreRoute
         writeFP(diagState.pdAF, afType, afMap, afXi, afYi, afTitle, afArrow, afSurrogate, afMode, afSpell, afItem, afToy, afInit, afArrivalToy, afAtlas, afNodeType, afTemplate, afContext, afNextType, afDescriptorType, afDescriptorConfidence, afDescriptorSource)
         writeFP(diagState.pdAR, arType, arMap, arXi, arYi, arTitle, arArrow, arSurrogate, arMode, arSpell, arItem, arToy, arInit, arArrivalToy, arAtlas, arNodeType, arTemplate, arContext, arNextType, arDescriptorType, arDescriptorConfidence, arDescriptorSource)
         writeFP(diagState.pdDW, dwType, dwMap, dwXi, dwYi, dwTitle, dwArrow, dwSurrogate, dwMode, dwSpell, dwItem, dwToy, dwInit, dwArrivalToy, dwAtlas, dwNodeType, dwTemplate, dwContext, dwNextType, dwDescriptorType, dwDescriptorConfidence, dwDescriptorSource)
@@ -1297,6 +1774,9 @@ local function travelDiagTick()
 
     diagState.cfSupp = suppressed
     diagState.cfSpec = currentSpecial
+    diagState.cfProvider = provider
+    diagState.cfAction = action
+    diagState.cfCore = coreRoute
     writeFP(diagState.cfAF, afType, afMap, afXi, afYi, afTitle, afArrow, afSurrogate, afMode, afSpell, afItem, afToy, afInit, afArrivalToy, afAtlas, afNodeType, afTemplate, afContext, afNextType, afDescriptorType, afDescriptorConfidence, afDescriptorSource)
     writeFP(diagState.cfAR, arType, arMap, arXi, arYi, arTitle, arArrow, arSurrogate, arMode, arSpell, arItem, arToy, arInit, arArrivalToy, arAtlas, arNodeType, arTemplate, arContext, arNextType, arDescriptorType, arDescriptorConfidence, arDescriptorSource)
     writeFP(diagState.cfDW, dwType, dwMap, dwXi, dwYi, dwTitle, dwArrow, dwSurrogate, dwMode, dwSpell, dwItem, dwToy, dwInit, dwArrivalToy, dwAtlas, dwNodeType, dwTemplate, dwContext, dwNextType, dwDescriptorType, dwDescriptorConfidence, dwDescriptorSource)
@@ -1324,8 +1804,14 @@ local function handleTravelDiag()
     travelDiagState.pendingCount = 0
     travelDiagState.cfSupp = nil
     travelDiagState.cfSpec = nil
+    travelDiagState.cfProvider = nil
+    travelDiagState.cfAction = nil
+    travelDiagState.cfCore = nil
     travelDiagState.pdSupp = nil
     travelDiagState.pdSpec = nil
+    travelDiagState.pdProvider = nil
+    travelDiagState.pdAction = nil
+    travelDiagState.pdCore = nil
     travelDiagState.cfAF = travelDiagState.cfAF or {}
     travelDiagState.cfAR = travelDiagState.cfAR or {}
     travelDiagState.cfDW = travelDiagState.cfDW or {}
@@ -1350,8 +1836,8 @@ local function handleTravelDiag()
         travelDiagTick()
     end)
 
-    NS.Msg("[TRAVELDIAG] Monitor started. Tracking waypoint travel semantics (poll 0.2s).")
-    NS.Msg("[TRAVELDIAG] Fields: source waypoint, coords, titles, detected travel node source, node type/template/context/next type, spell/item/toy/init/arrivaltoy/atlas/mode, resolved descriptor, surrogate, suppression state.")
+    NS.Msg("[TRAVELDIAG] Monitor started. Tracking active route/backend travel semantics (poll 0.2s).")
+    NS.Msg("[TRAVELDIAG] Fields: active provider/backend/action, core route, and active-backend pointer internals when applicable.")
     NS.Msg("[TRAVELDIAG] " .. travelDiagSnapshot())
     commitFingerprint(travelDiagState)
 end
@@ -1383,7 +1869,7 @@ local function handleDiag()
     end)
 
     NS.Msg("[DIAG] Monitor started. Tracking state changes (poll 0.3s):")
-    NS.Msg("[DIAG] IC=InCinematic ICS=IsInCinematicScene UIP=UIParent ZF=ZygorFrame AF=Arrow TT=TomTom CA=cinematicActive GVS=guideVisibilityState WO=worldOverlay WM=nativeMode WR=nativeRoot WNF=nativeNavFrame UW=userWaypoint STU=superTrackedUser")
+    NS.Msg("[DIAG] IC=InCinematic ICS=IsInCinematicScene UIP=UIParent ZF=ZygorFrame AF=Arrow TT=TomTom CA=cinematicActive GVS=guideVisibilityState WO=worldOverlay WM=nativeMode WR=nativeRoot WNF=nativeNavFrame UW=userWaypoint STU=superTrackedUser RB=routingBackend RA=authority/activeBackend")
     diagTick()
 end
 
@@ -1393,9 +1879,9 @@ end
 
 local function handleMem()
     local backend = NS.GetWorldOverlayBackend()
-    local won = NS.State.worldOverlayNative
+    local won = NS.State.WorldOverlay
     local wo = NS.State.worldOverlay
-    local native = NS.Internal.WorldOverlayNative
+    local native = NS.Internal.WorldOverlay
     local bridge = NS.State.bridge
 
     local addonName = NS.ADDON_NAME
@@ -1471,17 +1957,21 @@ local function formatBridgeCoords(mapID, x, y)
 end
 
 local function sanitizeStepDebugLine(value)
-    value = tostring(value)
-    return (value:gsub("[%c]", function(char)
-        if char == "\r" or char == "\n" or char == "\t" then
-            return " "
-        end
-        return string.format("\\x%02X", string.byte(char))
-    end))
+    if type(NS.SanitizeDiagnosticText) == "function" then
+        return NS.SanitizeDiagnosticText(value)
+    end
+    return tostring(value)
 end
 
 local function handleStepDebug()
+    local activeProvider = type(NS.GetActiveGuideProvider) == "function" and NS.GetActiveGuideProvider() or nil
+    if (activeProvider == nil or activeProvider == "zygor")
+        and type(NS.RequestGuideResolverFullDebug) == "function"
+    then
+        NS.RequestGuideResolverFullDebug()
+    end
     NS.TickUpdate()
+    activeProvider = type(NS.GetActiveGuideProvider) == "function" and NS.GetActiveGuideProvider() or activeProvider
 
     local bridge = state.bridge
     local lastAppliedKind = type(bridge) == "table" and bridge.lastAppliedKind or nil
@@ -1508,7 +1998,32 @@ local function handleStepDebug()
         end
     end
 
+    if type(activeProvider) == "string"
+        and activeProvider ~= ""
+        and activeProvider ~= "zygor"
+        and type(NS.GetGuideProviderDebugLines) == "function"
+    then
+        local lines = NS.GetGuideProviderDebugLines(activeProvider)
+        if type(lines) ~= "table" or #lines == 0 then
+            NS.Msg("[STEPDEBUG] No provider debug snapshot available.")
+            return
+        end
+        for _, line in ipairs(lines) do
+            NS.Msg("[STEPDEBUG] " .. sanitizeStepDebugLine(line))
+        end
+        return
+    end
+
     if type(NS.GetGuideResolverDebugLines) ~= "function" then
+        if type(NS.GetGuideProviderDebugLines) == "function" then
+            local lines = NS.GetGuideProviderDebugLines(activeProvider)
+            if type(lines) == "table" and #lines > 0 then
+                for _, line in ipairs(lines) do
+                    NS.Msg("[STEPDEBUG] " .. sanitizeStepDebugLine(line))
+                end
+                return
+            end
+        end
         NS.Msg("[STEPDEBUG] Guide resolver is unavailable.")
         return
     end
@@ -1642,6 +2157,21 @@ local CHURN_COUNTER_KEYS = {
     "tickFromOther",
     "resolveHit",
     "resolveMiss",
+    "resolveMissNoCache",
+    "resolveMissStep",
+    "resolveMissGoal",
+    "resolveMissTargetSig",
+    "resolveMissMap",
+    "resolveMissCoord",
+    "resolveMissKind",
+    "resolveMissLegKind",
+    "resolveMissRouteType",
+    "resolveMissTitle",
+    "resolveMissFactsEpoch",
+    "resolveMissDialogEpoch",
+    "resolveMissFactsDirty",
+    "resolveMissFullDebug",
+    "resolveMissOther",
     "buildFacts",
     "invalidateFacts",
     "invalidateDialog",
@@ -1651,6 +2181,25 @@ local CHURN_COUNTER_KEYS = {
     "nativeWorldOverlayUpdate",
     "extractWaypoint",
     "extractManual",
+    "manualMapPinAreaHit",
+    "manualMapPinAreaMiss",
+    "manualMapPinTaxiHit",
+    "manualMapPinTaxiMiss",
+    "manualIdentityAreaHit",
+    "manualIdentityAreaMiss",
+    "manualIdentityTaxiHit",
+    "manualIdentityTaxiMiss",
+    "manualIdentityEmptyBase",
+    "manualPersistCalls",
+    "manualPersistRecordReuse",
+    "manualPersistRecordBuild",
+    "manualPersistEqualSkip",
+    "manualPersistWrite",
+    "manualPersistNoRecord",
+    "routePlanAccept",
+    "routePlanSkip",
+    "routeBackendInvalidation",
+    "routeBackendInvalidationSkip",
     "ensureHost",
     "resolveSettableTarget",
     "trySetHost",
@@ -1662,11 +2211,37 @@ local CHURN_COUNTER_KEYS = {
     "samples",
 }
 
+local CHURN_PHASE_KEYS = {
+    "phaseBridgeSetupKB",
+    "phaseManualExtractKB",
+    "phaseManualLookupKB",
+    "phaseManualMapPinResolveKB",
+    "phaseManualMapPinKeyKB",
+    "phaseManualIdentityResolveKB",
+    "phaseTargetKB",
+    "phaseRouteKB",
+    "phaseResolverKB",
+    "phaseFinalizeKB",
+    "phaseBridgeStatePrepKB",
+    "phaseBridgeStatePersistKB",
+    "phaseBridgeStateCompareKB",
+    "phaseBridgePushKB",
+    "phaseBridgeOverlayKB",
+    "phaseWorldOverlayKB",
+    "phaseNativeSyncKB",
+    "phaseNativeUpdateKB",
+}
+
 local churnSampleFrame = nil
 
 local function resetChurnCounters(churn)
     for _, key in ipairs(CHURN_COUNTER_KEYS) do
         churn[key] = 0
+    end
+    for _, key in ipairs(CHURN_PHASE_KEYS) do
+        churn[key] = 0
+        churn[key .. "Peak"] = 0
+        churn[key .. "Count"] = 0
     end
 end
 
@@ -1675,6 +2250,34 @@ local function formatRate(count, seconds)
         return "0/s"
     end
     return string.format("%d (%.1f/s)", count, count / seconds)
+end
+
+local function formatCount(count)
+    return tostring(tonumber(count) or 0)
+end
+
+local function formatPhaseKB(churn, key)
+    local total = tonumber(churn[key]) or 0
+    local peak = tonumber(churn[key .. "Peak"]) or 0
+    local count = tonumber(churn[key .. "Count"]) or 0
+    return string.format("%.1f/%.1f/%d", total, peak, count)
+end
+
+local function parseChurnArgs(rest)
+    local duration
+    local phaseMemoryEnabled = false
+
+    for token in tostring(rest or ""):gmatch("%S+") do
+        local lower = token:lower()
+        local numeric = tonumber(token)
+        if numeric and not duration then
+            duration = numeric
+        elseif lower == "phase" or lower == "phases" or lower == "mem" or lower == "memory" then
+            phaseMemoryEnabled = true
+        end
+    end
+
+    return duration, phaseMemoryEnabled
 end
 
 local function handleChurn(rest)
@@ -1686,6 +2289,7 @@ local function handleChurn(rest)
 
     if churn.active then
         churn.active = false
+        churn.phaseMemoryEnabled = false
         if churnSampleFrame then
             churnSampleFrame:SetScript("OnUpdate", nil)
         end
@@ -1693,7 +2297,7 @@ local function handleChurn(rest)
         return
     end
 
-    local duration = tonumber(rest)
+    local duration, phaseMemoryEnabled = parseChurnArgs(rest)
     if not duration or duration <= 0 then
         duration = 5
     end
@@ -1709,6 +2313,7 @@ local function handleChurn(rest)
     churn.duration = duration
     churn.startMem = startMem
     churn.peakMemKB = startMem
+    churn.phaseMemoryEnabled = phaseMemoryEnabled == true
     churn.active = true
 
     if not churnSampleFrame then
@@ -1733,7 +2338,11 @@ local function handleChurn(rest)
         churn.samples = (churn.samples or 0) + 1
     end)
 
-    NS.Msg(string.format("[CHURN] Sampling for %ds. Stand still, don't touch anything.", duration))
+    if churn.phaseMemoryEnabled then
+        NS.Msg(string.format("[CHURN] Sampling for %ds with phase memory attribution. Stand still, don't touch anything.", duration))
+    else
+        NS.Msg(string.format("[CHURN] Sampling for %ds. Stand still, don't touch anything.", duration))
+    end
 
     NS.After(duration, function()
         if not churn.active then
@@ -1765,6 +2374,9 @@ local function handleChurn(rest)
             formatMemoryKB(endMem)))
         NS.Msg(string.format("[CHURN] Churn=%.1f KB  rate=%.1f KB/s  live leak=%.1f KB",
             churnKB, churnRate, liveDelta))
+        local phaseMemoryWasEnabled = churn.phaseMemoryEnabled == true
+        churn.phaseMemoryEnabled = false
+
         NS.Msg(string.format("[CHURN] TickUpdate total=%s  hook=%s  heartbeat=%s",
             formatRate(churn.tickUpdate, actualSeconds),
             formatRate(churn.tickFromHook, actualSeconds),
@@ -1775,9 +2387,48 @@ local function handleChurn(rest)
             formatRate(churn.buildFacts, actualSeconds),
             formatRate(churn.invalidateFacts, actualSeconds),
             formatRate(churn.invalidateDialog, actualSeconds)))
+        NS.Msg(string.format("[CHURN] Resolver missBy noCache=%s step=%s goal=%s target=%s map=%s coord=%s kind=%s leg=%s route=%s title=%s factsEpoch=%s dialogEpoch=%s factsDirty=%s fullDebug=%s other=%s",
+            formatCount(churn.resolveMissNoCache),
+            formatCount(churn.resolveMissStep),
+            formatCount(churn.resolveMissGoal),
+            formatCount(churn.resolveMissTargetSig),
+            formatCount(churn.resolveMissMap),
+            formatCount(churn.resolveMissCoord),
+            formatCount(churn.resolveMissKind),
+            formatCount(churn.resolveMissLegKind),
+            formatCount(churn.resolveMissRouteType),
+            formatCount(churn.resolveMissTitle),
+            formatCount(churn.resolveMissFactsEpoch),
+            formatCount(churn.resolveMissDialogEpoch),
+            formatCount(churn.resolveMissFactsDirty),
+            formatCount(churn.resolveMissFullDebug),
+            formatCount(churn.resolveMissOther)))
         NS.Msg(string.format("[CHURN] Extract waypoint=%s  manual=%s",
             formatRate(churn.extractWaypoint, actualSeconds),
             formatRate(churn.extractManual, actualSeconds)))
+        NS.Msg(string.format("[CHURN] ManualMeta mapPin area hit=%s miss=%s  taxi hit=%s miss=%s",
+            formatCount(churn.manualMapPinAreaHit),
+            formatCount(churn.manualMapPinAreaMiss),
+            formatCount(churn.manualMapPinTaxiHit),
+            formatCount(churn.manualMapPinTaxiMiss)))
+        NS.Msg(string.format("[CHURN] ManualMeta identity area hit=%s miss=%s  taxi hit=%s miss=%s  emptyBase=%s",
+            formatCount(churn.manualIdentityAreaHit),
+            formatCount(churn.manualIdentityAreaMiss),
+            formatCount(churn.manualIdentityTaxiHit),
+            formatCount(churn.manualIdentityTaxiMiss),
+            formatCount(churn.manualIdentityEmptyBase)))
+        NS.Msg(string.format("[CHURN] ManualMeta persist calls=%s build=%s reuse=%s equalSkip=%s write=%s noRecord=%s",
+            formatCount(churn.manualPersistCalls),
+            formatCount(churn.manualPersistRecordBuild),
+            formatCount(churn.manualPersistRecordReuse),
+            formatCount(churn.manualPersistEqualSkip),
+            formatCount(churn.manualPersistWrite),
+            formatCount(churn.manualPersistNoRecord)))
+        NS.Msg(string.format("[CHURN] Route plan accept=%s skip=%s  backendInvalidation=%s skipped=%s",
+            formatRate(churn.routePlanAccept, actualSeconds),
+            formatRate(churn.routePlanSkip, actualSeconds),
+            formatRate(churn.routeBackendInvalidation, actualSeconds),
+            formatRate(churn.routeBackendInvalidationSkip, actualSeconds)))
         NS.Msg(string.format("[CHURN] Driver total=%s  hidden=%s  visuals=%s  worldOverlayUpdate=%s",
             formatRate(churn.driverUpdate, actualSeconds),
             formatRate(churn.driverUpdateHidden, actualSeconds),
@@ -1793,6 +2444,30 @@ local function handleChurn(rest)
             formatRate(churn.setUserWaypointCall, actualSeconds),
             formatRate(churn.userWaypointUpdatedEvent, actualSeconds),
             formatRate(churn.refreshWorldOverlay, actualSeconds)))
+        if phaseMemoryWasEnabled then
+            NS.Msg("[CHURN] PhaseKB format total/peak/calls; totals are diagnostic and may include sampling overhead.")
+            NS.Msg(string.format("[CHURN] PhaseKB bridge setup=%s manualExtract=%s manualLookup=%s manualMapPinResolve=%s manualMapPinKey=%s manualIdentityResolve=%s",
+                formatPhaseKB(churn, "phaseBridgeSetupKB"),
+                formatPhaseKB(churn, "phaseManualExtractKB"),
+                formatPhaseKB(churn, "phaseManualLookupKB"),
+                formatPhaseKB(churn, "phaseManualMapPinResolveKB"),
+                formatPhaseKB(churn, "phaseManualMapPinKeyKB"),
+                formatPhaseKB(churn, "phaseManualIdentityResolveKB")))
+            NS.Msg(string.format("[CHURN] PhaseKB target=%s route=%s resolver=%s finalize=%s statePrep=%s statePersist=%s stateCompare=%s push=%s overlayCall=%s",
+                formatPhaseKB(churn, "phaseTargetKB"),
+                formatPhaseKB(churn, "phaseRouteKB"),
+                formatPhaseKB(churn, "phaseResolverKB"),
+                formatPhaseKB(churn, "phaseFinalizeKB"),
+                formatPhaseKB(churn, "phaseBridgeStatePrepKB"),
+                formatPhaseKB(churn, "phaseBridgeStatePersistKB"),
+                formatPhaseKB(churn, "phaseBridgeStateCompareKB"),
+                formatPhaseKB(churn, "phaseBridgePushKB"),
+                formatPhaseKB(churn, "phaseBridgeOverlayKB")))
+            NS.Msg(string.format("[CHURN] PhaseKB overlay world=%s nativeSync=%s nativeUpdate=%s",
+                formatPhaseKB(churn, "phaseWorldOverlayKB"),
+                formatPhaseKB(churn, "phaseNativeSyncKB"),
+                formatPhaseKB(churn, "phaseNativeUpdateKB")))
+        end
     end)
 end
 
@@ -1800,6 +2475,8 @@ M.handleDiag = handleDiag
 M.handleMem = handleMem
 M.handlePlaque = handlePlaque
 M.handleWaytype = handleWaytype
+M.handleRouteDump = handleRouteDump
+M.handleRouteEnvTrace = handleRouteEnvTrace
 M.handleTravelDiag = handleTravelDiag
 M.handleStepDebug = handleStepDebug
 M.handleResolverCases = handleResolverCases

@@ -1,4 +1,4 @@
-local NS = _G.ZygorWaypointNS
+local NS = _G.AzerothWaypointNS
 local state = NS.State
 local M = NS.Internal.Interface.commands
 
@@ -68,7 +68,7 @@ local function SetWhoWherePendingSearchKind(WW, kind)
         return
     end
 
-    WW.zwpPendingSearchKind = type(kind) == "string" and kind or nil
+    WW.awpPendingSearchKind = type(kind) == "string" and kind or nil
 end
 
 local function TagCurrentWhoWhereWaypoint(WW)
@@ -77,14 +77,14 @@ local function TagCurrentWhoWhereWaypoint(WW)
     end
 
     local currentWay = WW.CurrentWay
-    local pendingKind = type(WW.zwpPendingSearchKind) == "string" and WW.zwpPendingSearchKind or nil
-    WW.zwpPendingSearchKind = nil
+    local pendingKind = type(WW.awpPendingSearchKind) == "string" and WW.awpPendingSearchKind or nil
+    WW.awpPendingSearchKind = nil
 
     if type(currentWay) ~= "table" or currentWay.type ~= "manual" or pendingKind == nil then
         return
     end
 
-    currentWay.zwpSearchKind = pendingKind
+    currentWay.searchKind = pendingKind
 end
 
 local function getWhoWhere()
@@ -275,7 +275,7 @@ local function handleSearch(arg)
 
     local _, WW = getWhoWhere()
     if not WW then
-        NS.Msg("Zygor nearest-NPC search is not ready.")
+        NS.Msg("Zygor nearest-NPC search requires Zygor Guides Viewer.")
         return
     end
 

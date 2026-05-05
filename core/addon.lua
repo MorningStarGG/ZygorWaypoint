@@ -1,9 +1,9 @@
 local ADDON_NAME = ...
 
-local NS = _G.ZygorWaypointNS
+local NS = _G.AzerothWaypointNS
 if type(NS) ~= "table" then
     NS = {}
-    _G.ZygorWaypointNS = NS
+    _G.AzerothWaypointNS = NS
 end
 
 function NS.GetAddonMetadataValue(field, fallback)

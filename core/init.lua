@@ -1,4 +1,4 @@
-local NS = _G.ZygorWaypointNS
+local NS = _G.AzerothWaypointNS
 local state = NS.State
 local GetZygorPointer = NS.GetZygorPointer
 local GetTomTom = NS.GetTomTom
@@ -26,9 +26,16 @@ f:RegisterEvent("PLAY_MOVIE")
 f:RegisterEvent("STOP_MOVIE")
 f:RegisterEvent("LOADING_SCREEN_ENABLED")
 f:RegisterEvent("LOADING_SCREEN_DISABLED")
+f:RegisterEvent("NEW_WMO_CHUNK")
 f:RegisterEvent("PLAYER_DEAD")
 f:RegisterEvent("PLAYER_ALIVE")
 f:RegisterEvent("PLAYER_UNGHOST")
+f:RegisterEvent("UNIT_ENTERING_VEHICLE")
+f:RegisterEvent("UNIT_EXITING_VEHICLE")
+f:RegisterEvent("UNIT_FLAGS")
+f:RegisterEvent("ZONE_CHANGED")
+f:RegisterEvent("ZONE_CHANGED_INDOORS")
+f:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 f:RegisterEvent("SUPER_TRACKING_CHANGED")
 f:RegisterEvent("USER_WAYPOINT_UPDATED")
 f:RegisterEvent("NAVIGATION_FRAME_CREATED")
@@ -44,6 +51,7 @@ f:RegisterEvent("QUEST_ACCEPTED")
 f:RegisterEvent("QUEST_TURNED_IN")
 f:RegisterEvent("QUEST_LOG_UPDATE")
 f:RegisterEvent("QUEST_REMOVED")
+f:RegisterEvent("DYNAMIC_GOSSIP_POI_UPDATED")
 
 -- ============================================================
 -- Readiness checks and retry
@@ -66,6 +74,9 @@ local function RunWhenReady(isReady, fn, remaining)
 end
 
 local function IsZygorPointerReady()
+    if type(NS.IsZygorLoaded) == "function" and not NS.IsZygorLoaded() then
+        return false
+    end
     local Z, P = GetZygorPointer()
     return Z ~= nil and P ~= nil
 end
@@ -76,6 +87,9 @@ local function IsTomTomReady()
 end
 
 local function ScheduleZygorPointerWork(fn)
+    if type(NS.IsZygorLoaded) == "function" and not NS.IsZygorLoaded() then
+        return
+    end
     RunWhenReady(IsZygorPointerReady, fn)
 end
 
@@ -83,52 +97,24 @@ local function ScheduleTomTomWork(fn)
     RunWhenReady(IsTomTomReady, fn)
 end
 
-local function RunLegacy2xAutoRepairMigration()
-    local shouldRepair = type(NS.ShouldRunLegacy2xAutoRepair) == "function"
-        and NS.ShouldRunLegacy2xAutoRepair()
-        or false
-    local shouldCleanup = type(NS.ShouldRunLegacy2xSavedVariableCleanup) == "function"
-        and NS.ShouldRunLegacy2xSavedVariableCleanup()
-        or false
-    local fixed = nil
-    local removed = nil
-
-    if shouldRepair and type(NS.RunRepair) == "function" then
-        fixed = NS.RunRepair({ silent = true })
-    end
-
-    if shouldCleanup and type(NS.RunLegacy2xSavedVariableCleanup) == "function" then
-        removed = NS.RunLegacy2xSavedVariableCleanup()
-    end
-
-    if type(NS.MarkLegacy2xAutoRepairDone) == "function" then
-        NS.MarkLegacy2xAutoRepairDone()
-    end
-
-    if shouldCleanup and type(NS.MarkLegacy2xSavedVariableCleanupDone) == "function" then
-        NS.MarkLegacy2xSavedVariableCleanupDone()
-    end
-
-    if type(fixed) == "table" and #fixed > 0 then
-        NS.Msg("Applied one-time repair for settings from an older ZWP 2.x version. Type /reload to apply.")
-    end
-
-    if type(removed) == "table" and #removed > 0 then
-        local count = #removed
-        NS.Msg(string.format(
-            "Cleaned %d obsolete saved setting%s from older ZWP 2.x data.",
-            count,
-            count == 1 and "" or "s"
-        ))
-    end
+local function MarkGuideResolverFactsDirty(reason, questID)
+    SafeCall(NS.MarkGuideResolverFactsDirty, reason, questID)
 end
 
-local function ScheduleQuestHandoffRefreshRetry()
+local function MarkGuideResolverDialogDirty(reason)
+    SafeCall(NS.MarkGuideResolverDialogDirty, reason)
+end
+
+local function ScheduleQuestHandoffRefreshRetry(reason, questID)
     NS.After(QUEST_HANDOFF_RETRY_DELAY_SECONDS, function()
-        SafeCall(NS.InvalidateGuideResolverDialogState)
-        SafeCall(NS.InvalidateGuideResolverFactsState)
+        MarkGuideResolverDialogDirty(reason or "quest_handoff_retry")
+        MarkGuideResolverFactsDirty(reason or "quest_handoff_retry", questID)
         SafeCall(NS.TickUpdate)
     end)
+end
+
+local function MarkGuideResolverForQuestLogChange(reason, questID)
+    MarkGuideResolverFactsDirty(reason or "quest_log_update", questID)
 end
 
 -- ============================================================
@@ -139,41 +125,76 @@ f:SetScript("OnEvent", function(_, ev, arg1)
     if ev == "ADDON_LOADED" then
         if arg1 == NS.ADDON_NAME then
             SafeCall(NS.ApplyDBDefaults)
+            SafeCall(NS.InitializeRoutingCore)
             SafeCall(NS.InitializeWorldOverlay)
             SafeCall(NS.RegisterOptionsPanel)
             SafeCall(NS.RegisterCommands)
-            SafeCall(NS.StartBridgeHeartbeat)
-            NS.Msg("ZygorWaypoint loaded. Use /zwp for commands.")
+            NS.Msg("AzerothWaypoint loaded. Use /awp for commands.")
         end
     elseif ev == "PLAYER_LOGIN" then
         state.init.playerLoggedIn = true
+        if type(rawget(_G, "ZygorWaypointNS")) == "table"
+            or (type(C_AddOns) == "table" and type(C_AddOns.IsAddOnLoaded) == "function"
+                and C_AddOns.IsAddOnLoaded("ZygorWaypoint"))
+        then
+            NS.Msg("|cffff4040WARNING:|r Old 'ZygorWaypoint' addon is still installed. Delete the ZygorWaypoint folder from Interface/AddOns to avoid conflicts.")
+        end
         SafeCall(NS.RefreshSuperTrackedFrameSuppression)
-        SafeCall(NS.InstallBlizzardQuestTakeoverHooks)
-        -- Immediate method hooks on the viewer. These are safe to install as soon
-        -- as PLAYER_LOGIN fires, even if Pointer-derived objects are not fully ready.
-        SafeCall(NS.HookZygorTickHooks)
+        SafeCall(NS.InstallBlizzardTakeoverHooks)
+        if type(NS.IsZygorLoaded) == "function" and NS.IsZygorLoaded() then
+            SafeCall(NS.InstallZygorPoiTakeoverHooks)
+        end
         NS.After(0, function()
-            SafeCall(NS.CheckStartupHelpNotification)
-            SafeCall(RunLegacy2xAutoRepairMigration)
+            local startupHelpPage = SafeCall(NS.CheckStartupHelpNotification)
             SafeCall(NS.MaybeAnnounceWaypointUIRecommendation)
-            NS.After(0.35, function()
-                SafeCall(NS.MaybeShowWaypointUIRecommendationPopup)
+            NS.After(0.85, function()
+                SafeCall(NS.MaybeAnnounceZygorArrowRecommendation, 1)
+            end)
+            NS.After(startupHelpPage and 4.0 or 0.35, function()
+                SafeCall(NS.MaybeShowWaypointUIRecommendationPopup, 1)
+            end)
+            NS.After(0.5, function()
+                SafeCall(NS.MaybeShowZygorWaypointConflictPopup)
+                SafeCall(NS.StartZygorWaypointConflictReminders)
+            end)
+            NS.After(startupHelpPage and 6.0 or 1.25, function()
+                SafeCall(NS.MaybeShowZygorArrowRecommendationPopup, 1)
             end)
         end)
 
-        -- These features require Zygor.Pointer/ArrowFrame-style objects and are
-        -- retried until that dependency becomes available.
-        ScheduleZygorPointerWork(function()
-            SafeCall(NS.HookZygorGuideGuards)
-            SafeCall(NS.HookZygorDisplayState)
-        end)
         ScheduleZygorPointerWork(NS.HookZygorWhoWhereFallbacks)
-        ScheduleZygorPointerWork(NS.ApplyTomTomArrowDefaults)
-        ScheduleZygorPointerWork(NS.HookZygorArrowTextures)
         ScheduleZygorPointerWork(NS.HookZygorViewerChromeMode)
 
+        SafeCall(NS.HydrateManualQueues)
+
         -- TomTom routing only depends on TomTom's waypoint API being available.
-        ScheduleTomTomWork(NS.HookTomTomRouting)
+        ScheduleTomTomWork(function()
+            SafeCall(NS.ApplyTomTomArrowDefaults)
+            SafeCall(NS.InstallExternalTomTomHooks)
+            SafeCall(NS.InstallCarrierTomTomHooks)
+            local savedRouteSource = type(NS.GetSavedActiveRouteSource) == "function"
+                and NS.GetSavedActiveRouteSource()
+                or "manual"
+            local restoredManualRoute = false
+            if savedRouteSource ~= "guide" then
+                if type(NS.RestoreManualQueues) == "function" then
+                    restoredManualRoute = NS.RestoreManualQueues({
+                        allowActiveQueueFallback = true,
+                        skipHydrate = true,
+                    }) == true
+                end
+                if not restoredManualRoute and type(NS.RestoreManualAuthority) == "function" then
+                    restoredManualRoute = NS.RestoreManualAuthority() == true
+                end
+            end
+            if not restoredManualRoute then
+                SafeCall(NS.RecomputeCarrier)
+            end
+            -- Drive guide routing through AWP after the saved
+            -- route source has had first chance to restore. Manual authority
+            -- still wins once guide evaluation starts.
+            SafeCall(NS.StartGuideRoutingEvaluation)
+        end)
 
         -- Keep these staged: both addons can exist but still need a beat to settle
         -- after login/reload before startup adoption and the first bridge sync.
@@ -184,15 +205,33 @@ f:SetScript("OnEvent", function(_, ev, arg1)
                 SafeCall(NS.OnNativeNavFrameCreated)
             end
         end)
-        NS.After(0.8, function() SafeCall(NS.ResumeTomTomRoutingStartupSync) end)
-        NS.After(0.9, function() SafeCall(NS.SyncSuperTrackedQuestToManual) end)
+        NS.After(0.9, function() SafeCall(NS.SyncBlizzardTakeovers) end)
         NS.After(1.0, function() SafeCall(NS.TickUpdate) end)
     elseif ev == "CINEMATIC_START" or ev == "PLAY_MOVIE" or ev == "LOADING_SCREEN_ENABLED" then
         SafeCall(NS.SetCinematicActive, true)
     elseif ev == "CINEMATIC_STOP" or ev == "STOP_MOVIE" or ev == "LOADING_SCREEN_DISABLED" then
         SafeCall(NS.SetCinematicActive, false)
+        if ev == "LOADING_SCREEN_DISABLED" then
+            NS.After(0, function()
+                SafeCall(NS.NoteRouteEnvironmentChanged, ev)
+            end)
+        end
     elseif ev == "PLAYER_DEAD" or ev == "PLAYER_ALIVE" or ev == "PLAYER_UNGHOST" then
         NS.After(0, function() SafeCall(NS.TickUpdate) end)
+    elseif ev == "NEW_WMO_CHUNK"
+        or ev == "UNIT_ENTERING_VEHICLE" or ev == "UNIT_EXITING_VEHICLE"
+    then
+        NS.After(0, function()
+            SafeCall(NS.NoteRouteEnvironmentChanged, ev)
+        end)
+    elseif ev == "UNIT_FLAGS" and arg1 == "player" then
+        NS.After(0, function()
+            SafeCall(NS.TickUpdate)
+        end)
+    elseif ev == "ZONE_CHANGED" or ev == "ZONE_CHANGED_INDOORS" or ev == "ZONE_CHANGED_NEW_AREA" then
+        NS.After(0, function()
+            SafeCall(NS.NoteRouteEnvironmentChanged, ev)
+        end)
     elseif ev == "SUPER_TRACKING_CHANGED" then
         local superType = C_SuperTrack.GetHighestPrioritySuperTrackingType and C_SuperTrack.GetHighestPrioritySuperTrackingType()
         NS.LogSuperTrackTrace("SUPER_TRACKING_CHANGED", tostring(superType))
@@ -215,6 +254,8 @@ f:SetScript("OnEvent", function(_, ev, arg1)
     elseif ev == "QUEST_LOG_UPDATE" or ev == "QUEST_REMOVED" then
         SafeCall(NS.InvalidateNativeOverlayQuestCaches, arg1)
         SafeCall(NS.ScheduleActiveQuestBackedManualRefresh, ev, arg1)
+        MarkGuideResolverForQuestLogChange(ev, arg1)
+        SafeCall(NS.ScheduleActiveGuidePresentationRefresh, ev)
     elseif ev == "NAVIGATION_FRAME_CREATED" then
         SafeCall(NS.OnNativeNavFrameCreated)
     elseif ev == "NAVIGATION_FRAME_DESTROYED" then
@@ -233,11 +274,13 @@ f:SetScript("OnEvent", function(_, ev, arg1)
         if ev == "QUEST_TURNED_IN" then
             SafeCall(NS.ScheduleActiveQuestBackedManualRefresh, ev, arg1)
         end
-        SafeCall(NS.InvalidateGuideResolverDialogState)
+        MarkGuideResolverDialogDirty(ev)
         if ev == "QUEST_ACCEPTED" or ev == "QUEST_TURNED_IN" then
-            SafeCall(NS.InvalidateGuideResolverFactsState)
-            ScheduleQuestHandoffRefreshRetry()
+            MarkGuideResolverFactsDirty(ev, arg1)
+            ScheduleQuestHandoffRefreshRetry(ev .. "_retry", arg1)
         end
         NS.After(0, function() SafeCall(NS.TickUpdate) end)
+    elseif ev == "DYNAMIC_GOSSIP_POI_UPDATED" then
+        NS.After(0, function() SafeCall(NS.OnDynamicGossipPoiUpdated) end)
     end
 end)
