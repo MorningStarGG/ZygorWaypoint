@@ -52,6 +52,9 @@ local function ResolveBackend()
     if not NS.IsWorldOverlayEnabled() then
         return C.WORLD_OVERLAY_BACKEND_NONE
     end
+    if type(NS.IsWorldOverlayCombatHidden) == "function" and NS.IsWorldOverlayCombatHidden() then
+        return C.WORLD_OVERLAY_BACKEND_NONE
+    end
 
     return C.WORLD_OVERLAY_BACKEND_NATIVE
 end

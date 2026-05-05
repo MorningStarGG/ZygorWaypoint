@@ -124,6 +124,11 @@ local function RenderGeneral()
         function(v)
             if type(NS.SetBackend) == "function" then NS.SetBackend(v) else NS.GetDB().routingBackend = v end
         end)
+    AddDropdown("Hide During Combat",
+        "Temporarily hides TomTom, the special travel button, the 3D overlay, or both while you are in combat. Selected displays restore when combat ends.",
+        opts.CreateCombatHideModeOptions,
+        function() return NS.GetCombatHideMode() end,
+        function(v) NS.SetCombatHideMode(v) end)
 
     Spacer()
     SectionHeader("Manual Waypoints")
@@ -165,7 +170,7 @@ local function RenderGeneral()
         function() return NS.IsGenericAddonBlizzardTakeoverEnabled() end,
         function(v) NS.SetGenericAddonBlizzardTakeoverEnabled(v) end)
     AddRecentAddonCallerList("Detected Addon Callers",
-        "Recent unknown addon calls to Blizzard waypoint or supertracking APIs. Allow adds the addon to the whitelist. Deny adds it to the denylist.",
+        "Recent unknown addon calls to Blizzard waypoint or supertracking APIs. Allow adds the addon to the allowlist. Block adds it to the blocklist.",
         function()
             return type(NS.GetRecentGenericAddonBlizzardTakeoverCallers) == "function"
                 and NS.GetRecentGenericAddonBlizzardTakeoverCallers()
@@ -173,12 +178,12 @@ local function RenderGeneral()
         end,
         function(addonName)
             if type(NS.AddGenericAddonBlizzardTakeoverListEntry) == "function" then
-                NS.AddGenericAddonBlizzardTakeoverListEntry("whitelist", addonName)
+                NS.AddGenericAddonBlizzardTakeoverListEntry("allowlist", addonName)
             end
         end,
         function(addonName)
             if type(NS.AddGenericAddonBlizzardTakeoverListEntry) == "function" then
-                NS.AddGenericAddonBlizzardTakeoverListEntry("denylist", addonName)
+                NS.AddGenericAddonBlizzardTakeoverListEntry("blocklist", addonName)
             end
         end,
         function()
@@ -186,20 +191,20 @@ local function RenderGeneral()
                 NS.ClearRecentGenericAddonBlizzardTakeoverCallers()
             end
         end)
-    AddTextInputList("Addon Whitelist",
+    AddTextInputList("Addon Allowlist",
         "Addons in this list are allowed to create manual AWP routes through Blizzard waypoint APIs even when unknown adoption is disabled.",
         "Addon folder name",
-        function() return NS.GetGenericAddonBlizzardTakeoverList("whitelist") end,
-        function(addonName) NS.AddGenericAddonBlizzardTakeoverListEntry("whitelist", addonName) end,
-        function(addonName) NS.RemoveGenericAddonBlizzardTakeoverListEntry("whitelist", addonName) end,
-        function() NS.ClearGenericAddonBlizzardTakeoverList("whitelist") end)
-    AddTextInputList("Addon Denylist",
+        function() return NS.GetGenericAddonBlizzardTakeoverList("allowlist") end,
+        function(addonName) NS.AddGenericAddonBlizzardTakeoverListEntry("allowlist", addonName) end,
+        function(addonName) NS.RemoveGenericAddonBlizzardTakeoverListEntry("allowlist", addonName) end,
+        function() NS.ClearGenericAddonBlizzardTakeoverList("allowlist") end)
+    AddTextInputList("Addon Blocklist",
         "Addons in this list are never adopted by the generic waypoint takeover layer.",
         "Addon folder name",
-        function() return NS.GetGenericAddonBlizzardTakeoverList("denylist") end,
-        function(addonName) NS.AddGenericAddonBlizzardTakeoverListEntry("denylist", addonName) end,
-        function(addonName) NS.RemoveGenericAddonBlizzardTakeoverListEntry("denylist", addonName) end,
-        function() NS.ClearGenericAddonBlizzardTakeoverList("denylist") end)
+        function() return NS.GetGenericAddonBlizzardTakeoverList("blocklist") end,
+        function(addonName) NS.AddGenericAddonBlizzardTakeoverListEntry("blocklist", addonName) end,
+        function(addonName) NS.RemoveGenericAddonBlizzardTakeoverListEntry("blocklist", addonName) end,
+        function() NS.ClearGenericAddonBlizzardTakeoverList("blocklist") end)
 end
 
 local function RenderTomTomArrow()

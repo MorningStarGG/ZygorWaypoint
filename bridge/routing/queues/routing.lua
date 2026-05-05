@@ -281,9 +281,6 @@ function NS.PrepareManualQueueRouteRequest(mapID, x, y, title, meta, opts)
 
     local normalizedMeta = Queue.NormalizeQueueItemMeta(meta, mapID, x, y)
     local sourceType = Queue.InferQueueSourceType(normalizedMeta)
-    if type(opts) == "table" and type(opts.clickContext) == "table" then
-        sourceType = "manual_click"
-    end
 
     if sourceType == "transient_source" then
         local sourceAddon = Queue.NormalizeSourceAddon(type(normalizedMeta) == "table" and normalizedMeta.sourceAddon or nil)
@@ -295,6 +292,10 @@ function NS.PrepareManualQueueRouteRequest(mapID, x, y, title, meta, opts)
             Queue.PushTransientQueue(queue)
         end)
         return context, Queue.BuildRouteMetaForQueueItem(queue.items[1]), transaction
+    end
+
+    if type(opts) == "table" and type(opts.clickContext) == "table" then
+        sourceType = "manual_click"
     end
 
     local existingQueue, existingIndex = Queue.FindSingleDestinationManualQueue(mapID, x, y, title)

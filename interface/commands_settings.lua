@@ -194,7 +194,7 @@ local function usage()
     NS.Msg("       /awp untrackclear on|off|toggle")
     NS.Msg("       /awp questclear on|off|toggle")
     NS.Msg("       /awp addontakeover on|off|toggle|status")
-    NS.Msg("       /awp addontakeover whitelist|denylist add|remove|list|clear <addon>")
+    NS.Msg("       /awp addontakeover allowlist|blocklist add|remove|list|clear <addon>")
     NS.Msg("       /awp compact on|off|toggle")
     NS.Msg("       /awp resolvercases [all|case_id]")
     NS.Msg("       /awp routeenv on|off|dump")
@@ -260,6 +260,22 @@ local function FormatBackendName(id)
         return "FarstriderLib"
     end
     return tostring(id or "-")
+end
+
+local function FormatCombatHideMode(mode)
+    mode = type(NS.NormalizeCombatHideMode) == "function"
+        and NS.NormalizeCombatHideMode(mode)
+        or tostring(mode or "")
+    if mode == C.COMBAT_HIDE_MODE_TOMTOM then
+        return "TomTom + Travel Button"
+    end
+    if mode == C.COMBAT_HIDE_MODE_OVERLAY then
+        return "World Overlay"
+    end
+    if mode == C.COMBAT_HIDE_MODE_BOTH then
+        return "Both"
+    end
+    return "Disabled"
 end
 
 local function handleBackend(arg)
@@ -423,40 +439,35 @@ local function handleAddonTakeover(arg)
         return
     elseif lowered == "" or lowered == "status" then
         NS.Msg("Unknown addon waypoint adoption:", current and "enabled" or "disabled")
-        NS.Msg("Whitelist:", formatList(NS.GetGenericAddonBlizzardTakeoverList("whitelist")))
-        NS.Msg("Denylist:", formatList(NS.GetGenericAddonBlizzardTakeoverList("denylist")))
-        NS.Msg("Usage: /awp addontakeover whitelist|denylist add|remove|list|clear <addon>")
+        NS.Msg("Allowlist:", formatList(NS.GetGenericAddonBlizzardTakeoverList("allowlist")))
+        NS.Msg("Blocklist:", formatList(NS.GetGenericAddonBlizzardTakeoverList("blocklist")))
+        NS.Msg("Usage: /awp addontakeover allowlist|blocklist add|remove|list|clear <addon>")
         return
     end
 
     local listKind, action, addonName = text:match("^(%S+)%s+(%S+)%s*(.-)%s*$")
     listKind = listKind and listKind:lower() or nil
     action = action and action:lower() or nil
-    if listKind == "allowlist" or listKind == "allow" or listKind == "white" then
-        listKind = "whitelist"
-    elseif listKind == "blacklist" or listKind == "blocklist" or listKind == "deny" or listKind == "black" then
-        listKind = "denylist"
-    end
 
-    if listKind ~= "whitelist" and listKind ~= "denylist" then
-        NS.Msg("Usage: /awp addontakeover whitelist|denylist add|remove|list|clear <addon>")
+    if listKind ~= "allowlist" and listKind ~= "blocklist" then
+        NS.Msg("Usage: /awp addontakeover allowlist|blocklist add|remove|list|clear <addon>")
         return
     end
 
     if action == "list" then
-        NS.Msg((listKind == "whitelist" and "Whitelist:" or "Denylist:"),
+        NS.Msg((listKind == "allowlist" and "Allowlist:" or "Blocklist:"),
             formatList(NS.GetGenericAddonBlizzardTakeoverList(listKind)))
         return
     end
     if action == "clear" then
         NS.ClearGenericAddonBlizzardTakeoverList(listKind)
-        NS.Msg((listKind == "whitelist" and "Whitelist" or "Denylist") .. " cleared.")
+        NS.Msg((listKind == "allowlist" and "Allowlist" or "Blocklist") .. " cleared.")
         return
     end
     if action == "add" then
         local ok, result = NS.AddGenericAddonBlizzardTakeoverListEntry(listKind, addonName)
         if ok then
-            NS.Msg((listKind == "whitelist" and "Whitelisted:" or "Denied:"), result)
+            NS.Msg((listKind == "allowlist" and "Allowed:" or "Blocked:"), result)
         else
             NS.Msg("Addon list add failed:", tostring(result))
         end
@@ -472,7 +483,7 @@ local function handleAddonTakeover(arg)
         return
     end
 
-    NS.Msg("Usage: /awp addontakeover whitelist|denylist add|remove|list|clear <addon>")
+    NS.Msg("Usage: /awp addontakeover allowlist|blocklist add|remove|list|clear <addon>")
 end
 
 local function handleCompact(arg)
@@ -587,6 +598,8 @@ local function handleStatus()
         NS.IsUntrackedQuestAutoClearEnabled() and "on" or "off",
         "Supertrack arrival clear:",
         NS.IsSuperTrackedQuestAutoClearEnabled() and "on" or "off",
+        "Combat hide:",
+        FormatCombatHideMode(type(NS.GetCombatHideMode) == "function" and NS.GetCombatHideMode() or nil),
         "Unknown addon waypoints:",
         NS.IsGenericAddonBlizzardTakeoverEnabled() and "on" or "off",
         "Compact viewer:",

@@ -77,6 +77,22 @@ local SKIN_PRESETS = {
 
 local themeState = state.theme or {}
 state.theme = themeState
+themeState.arrowSuppressionReasons = themeState.arrowSuppressionReasons or {}
+
+local DEFAULT_SUPPRESSION_REASON = "default"
+
+local function HasArrowSuppressionReason()
+    for _, enabled in pairs(themeState.arrowSuppressionReasons) do
+        if enabled then
+            return true
+        end
+    end
+    return false
+end
+
+local function IsCombatLockdownActive()
+    return type(InCombatLockdown) == "function" and InCombatLockdown() == true
+end
 
 local function NormalizeKey(key)
     if type(key) ~= "string" then return nil end
@@ -982,8 +998,15 @@ function NS.HookTomTomThemeBridge()
     end
 end
 
-function NS.SuppressTomTomArrowDisplay(suppressed)
-    local flag = suppressed and true or false
+function NS.SuppressTomTomArrowDisplay(suppressed, reason)
+    reason = type(reason) == "string" and reason ~= "" and reason or DEFAULT_SUPPRESSION_REASON
+    if suppressed then
+        themeState.arrowSuppressionReasons[reason] = true
+    else
+        themeState.arrowSuppressionReasons[reason] = nil
+    end
+
+    local flag = HasArrowSuppressionReason()
     if themeState.arrowSuppressed == flag then return end
     themeState.arrowSuppressed = flag
 
@@ -1004,11 +1027,24 @@ function NS.SuppressTomTomArrowDisplay(suppressed)
         return
     end
 
+    if IsCombatLockdownActive()
+        or (type(NS.IsTomTomCombatHidden) == "function" and NS.IsTomTomCombatHidden() == true)
+    then
+        return
+    end
+
     if arrow and flag and type(arrow.Hide) == "function" then
         arrow:Hide()
     elseif tomtom and type(tomtom.ShowHideCrazyArrow) == "function" then
         tomtom:ShowHideCrazyArrow()
     end
+end
+
+function NS.IsTomTomArrowDisplaySuppressed(reason)
+    if type(reason) == "string" and reason ~= "" then
+        return themeState.arrowSuppressionReasons[reason] == true
+    end
+    return themeState.arrowSuppressed == true
 end
 
 function NS.ApplyTomTomArrowDefaults()

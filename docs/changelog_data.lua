@@ -2,6 +2,22 @@ local NS = _G.AzerothWaypointNS
 
 NS.CHANGELOG_DATA = {
     {
+        version = "4.0.0b",
+        sections = {
+            { title = "Routing and combat visibility", entries = {
+                { text = "Added Hide During Combat with options for Disabled, TomTom + Travel Button, World Overlay, and Both.", level = 1 },
+                { text = "TomTom combat hiding uses a secure visibility wrapper so the TomTom arrow and special travel button can be hidden during combat without protected-frame errors.", level = 1 },
+                { text = "Added player control lost/gained route refresh handling so taxi and flightpath start/end events replan the active route and recompute the TomTom carrier.", level = 1 },
+            }},
+            { title = "Compatibility fixes", entries = {
+                { text = "Added a WorldQuestTab click fallback for bonus objectives and other non-world-quest entries that have valid quest coordinates but do not emit Blizzard waypoint or supertrack signals.", level = 1 },
+                { text = "Added transparency, transparent, alpha, and visibility tags to the opacity options so searching transparency will find the opacity controls.", level = 1 },
+                { text = "Prevented transient external waypoint sources such as RareScanner and SilverDragon from opening the manual queue placement prompt.", level = 1 },
+                { text = "Renamed addon waypoint adoption list internals and wording to Allowlist/Blocklist.", level = 1 },
+            }},
+        },
+    },
+    {
         version = "4.0.0a",
         sections = {
             { title = "Compatibility fixes", entries = {
@@ -162,7 +178,7 @@ NS.CHANGELOG_DATA = {
                 { text = "Added quest-backed manual metadata for quest ID, quest state, quest type, world quest type, source addon, semantic kind, and icon hints.", level = 1 },
                 { text = "Improved presentation for available, incomplete, complete, repeatable, world quest, dungeon, raid, delve, racing, and travel targets.", level = 1 },
                 { text = "Improved tracked, untracked, supertracked, removed, and turned-in quest cleanup behavior for both active routes and queue items.", level = 1 },
-                { text = "Added unknown addon waypoint adoption controls with a toggle, whitelist, denylist, recent caller list, and chat commands.", level = 1 },
+                { text = "Added unknown addon waypoint adoption controls with a toggle, allowlist, blocklist, recent caller list, and chat commands.", level = 1 },
             }},
             { title = "WorldQuestTab integration", entries = {
                 { text = "Added `integrations/worldquesttab_takeover.lua`.", level = 1 },

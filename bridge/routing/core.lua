@@ -37,6 +37,8 @@ local RESET_LEG_ON_REPLAN_REASON = {
     environment = true,
     LOADING_SCREEN_DISABLED = true,
     NEW_WMO_CHUNK = true,
+    PLAYER_CONTROL_LOST = true,
+    PLAYER_CONTROL_GAINED = true,
     UNIT_ENTERING_VEHICLE = true,
     UNIT_EXITING_VEHICLE = true,
     ZONE_CHANGED = true,
@@ -46,6 +48,8 @@ local RESET_LEG_ON_REPLAN_REASON = {
 
 local FORCE_ENVIRONMENT_REFRESH_REASON = {
     LOADING_SCREEN_DISABLED = true,
+    PLAYER_CONTROL_LOST = true,
+    PLAYER_CONTROL_GAINED = true,
     UNIT_ENTERING_VEHICLE = true,
     UNIT_EXITING_VEHICLE = true,
 }
@@ -53,6 +57,8 @@ local FORCE_ENVIRONMENT_REFRESH_REASON = {
 local ENVIRONMENT_REFRESH_REASON = {
     environment = true,
     NEW_WMO_CHUNK = true,
+    PLAYER_CONTROL_LOST = true,
+    PLAYER_CONTROL_GAINED = true,
     ZONE_CHANGED = true,
     ZONE_CHANGED_INDOORS = true,
     ZONE_CHANGED_NEW_AREA = true,

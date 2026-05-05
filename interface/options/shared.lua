@@ -667,6 +667,15 @@ local function CreateRoutingBackendOptions()
     }
 end
 
+local function CreateCombatHideModeOptions()
+    local container = CreateControlTextContainer()
+    container:Add(C.COMBAT_HIDE_MODE_DISABLED, "Disabled")
+    container:Add(C.COMBAT_HIDE_MODE_TOMTOM, "TomTom + Travel Button")
+    container:Add(C.COMBAT_HIDE_MODE_OVERLAY, "World Overlay")
+    container:Add(C.COMBAT_HIDE_MODE_BOTH, "Both")
+    return container:GetData()
+end
+
 local function CreateManualClickQueueModeOptions()
     local container = CreateControlTextContainer()
     local options = type(NS.GetManualClickQueueModeOptions) == "function" and NS.GetManualClickQueueModeOptions() or nil
@@ -793,6 +802,7 @@ M.RefreshViewerChromeMode = RefreshViewerChromeMode
 M.CreateSkinOptions = CreateSkinOptions
 M.CreateGuideStepBackgroundHoverOptions = CreateGuideStepBackgroundHoverOptions
 M.CreateRoutingBackendOptions = CreateRoutingBackendOptions
+M.CreateCombatHideModeOptions = CreateCombatHideModeOptions
 M.CreateManualClickQueueModeOptions = CreateManualClickQueueModeOptions
 M.CreateWorldOverlayInfoOptions = CreateWorldOverlayInfoOptions
 M.CreateWorldOverlayColorModeOptions = CreateWorldOverlayColorModeOptions

@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.0.0b
+- **Routing and combat visibility**
+  - Added Hide During Combat with options for Disabled, TomTom + Travel Button, World Overlay, and Both.
+  - TomTom combat hiding uses a secure visibility wrapper so the TomTom arrow and special travel button can be hidden during combat without protected-frame errors.
+  - Added player control lost/gained route refresh handling so taxi and flightpath start/end events replan the active route and recompute the TomTom carrier.
+
+- **Compatibility fixes**
+  - Added a WorldQuestTab click fallback for bonus objectives and other non-world-quest entries that have valid quest coordinates but do not emit Blizzard waypoint or supertrack signals.
+  - Added transparency, transparent, alpha, and visibility tags to the opacity options so searching transparency will find the opacity controls.
+  - Prevented transient external waypoint sources such as RareScanner and SilverDragon from opening the manual queue placement prompt.
+  - Renamed addon waypoint adoption list internals and wording to Allowlist/Blocklist.
+
 ## 4.0.0a
 
 - **Compatibility fixes**
@@ -157,7 +169,7 @@
   - Added quest-backed manual metadata for quest ID, quest state, quest type, world quest type, source addon, semantic kind, and icon hints.
   - Improved presentation for available, incomplete, complete, repeatable, world quest, dungeon, raid, delve, racing, and travel targets.
   - Improved tracked, untracked, supertracked, removed, and turned-in quest cleanup behavior for both active routes and queue items.
-  - Added unknown addon waypoint adoption controls with a toggle, whitelist, denylist, recent caller list, and chat commands.
+  - Added unknown addon waypoint adoption controls with a toggle, allowlist, blocklist, recent caller list, and chat commands.
 
 - **WorldQuestTab integration**
   - Added `integrations/worldquesttab_takeover.lua`.

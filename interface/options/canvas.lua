@@ -402,7 +402,7 @@ local function SearchScopeAllows(entry)
             or TextHas(haystack, "arrow skin", "arrow scale", "overlay", "marker", "navigator", "special travel")
     elseif searchScope == "sizing" then
         return TextHas(label,
-            "size", "scale", "opacity", "distance", "offset", "height",
+            "size", "scale", "opacity", "transparency", "transparent", "alpha", "distance", "offset", "height",
             "show pinpoint at", "hide pinpoint at")
     elseif searchScope == "styles" then
         return TextHas(label,

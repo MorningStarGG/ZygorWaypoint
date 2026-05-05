@@ -47,10 +47,13 @@ function NS.HandleManualQueueRoutingPolicy(mapID, x, y, title, meta, opts)
 
     local normalizedMeta = Queue.NormalizeQueueItemMeta(meta, mapID, x, y)
     local sourceType = Queue.InferQueueSourceType(normalizedMeta)
+    if sourceType == "transient_source" then
+        return false
+    end
     if type(opts) == "table" and type(opts.clickContext) == "table" then
         sourceType = "manual_click"
     end
-    if sourceType == "transient_source" or not Queue.ShouldApplyManualClickQueuePolicy(sourceType, opts) then
+    if not Queue.ShouldApplyManualClickQueuePolicy(sourceType, opts) then
         return false
     end
 

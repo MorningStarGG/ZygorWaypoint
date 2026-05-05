@@ -487,7 +487,7 @@ function M.CreateWidgets(ctx)
                 local denyBtn = CreatePanelButton(row)
                 denyBtn:SetSize(54, 22)
                 denyBtn:SetPoint("RIGHT", row, "RIGHT", -2, 0)
-                denyBtn:SetDisplayText("Deny")
+                denyBtn:SetDisplayText("Block")
                 denyBtn:SetScript("OnClick", function()
                     if type(denyEntry) == "function" then
                         denyEntry(entry.addonName)

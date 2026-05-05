@@ -292,7 +292,7 @@ local function ResolveGenericAddonTakeoverCall(apiKind)
 
     local finalAllowed = false
     local finalReason = reason
-    if allowed and reason == "whitelist" then
+    if allowed and reason == "allowlist" then
         finalAllowed = true
     elseif allowed and IsGenericAddonClickStack(stack) then
         finalAllowed = true

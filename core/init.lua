@@ -30,6 +30,10 @@ f:RegisterEvent("NEW_WMO_CHUNK")
 f:RegisterEvent("PLAYER_DEAD")
 f:RegisterEvent("PLAYER_ALIVE")
 f:RegisterEvent("PLAYER_UNGHOST")
+f:RegisterEvent("PLAYER_CONTROL_LOST")
+f:RegisterEvent("PLAYER_CONTROL_GAINED")
+f:RegisterEvent("PLAYER_REGEN_DISABLED")
+f:RegisterEvent("PLAYER_REGEN_ENABLED")
 f:RegisterEvent("UNIT_ENTERING_VEHICLE")
 f:RegisterEvent("UNIT_EXITING_VEHICLE")
 f:RegisterEvent("UNIT_FLAGS")
@@ -170,6 +174,7 @@ f:SetScript("OnEvent", function(_, ev, arg1)
         -- TomTom routing only depends on TomTom's waypoint API being available.
         ScheduleTomTomWork(function()
             SafeCall(NS.ApplyTomTomArrowDefaults)
+            SafeCall(NS.ApplyCombatVisibilityGuard)
             SafeCall(NS.InstallExternalTomTomHooks)
             SafeCall(NS.InstallCarrierTomTomHooks)
             local savedRouteSource = type(NS.GetSavedActiveRouteSource) == "function"
@@ -218,8 +223,16 @@ f:SetScript("OnEvent", function(_, ev, arg1)
         end
     elseif ev == "PLAYER_DEAD" or ev == "PLAYER_ALIVE" or ev == "PLAYER_UNGHOST" then
         NS.After(0, function() SafeCall(NS.TickUpdate) end)
+    elseif ev == "PLAYER_REGEN_DISABLED" then
+        SafeCall(NS.SetCombatVisibilityEventActive, true)
+        SafeCall(NS.ApplyCombatVisibilityGuard)
+        NS.After(0, function() SafeCall(NS.ApplyCombatVisibilityGuard) end)
+    elseif ev == "PLAYER_REGEN_ENABLED" then
+        SafeCall(NS.SetCombatVisibilityEventActive, false)
+        NS.After(0, function() SafeCall(NS.ApplyCombatVisibilityGuard) end)
     elseif ev == "NEW_WMO_CHUNK"
         or ev == "UNIT_ENTERING_VEHICLE" or ev == "UNIT_EXITING_VEHICLE"
+        or ev == "PLAYER_CONTROL_LOST" or ev == "PLAYER_CONTROL_GAINED"
     then
         NS.After(0, function()
             SafeCall(NS.NoteRouteEnvironmentChanged, ev)

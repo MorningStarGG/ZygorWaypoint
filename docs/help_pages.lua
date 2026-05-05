@@ -274,7 +274,7 @@ NS.HELP_PAGES = {
             {
                 type = "note",
                 text =
-                "Use addon waypoint adoption when you want known or approved addon-created TomTom waypoints to appear as temporary AWP routes. Use the whitelist and denylist if unknown addon callers need stricter control.",
+                "Use addon waypoint adoption when you want known or approved addon-created TomTom waypoints to appear as temporary AWP routes. Use the allowlist and blocklist if unknown addon callers need stricter control.",
             },
         },
     },
@@ -1044,8 +1044,8 @@ NS.HELP_PAGES = {
                     "",
                     "- General > Adopt Waypoints from Unknown Addons.",
                     "- Detected Addon Callers.",
-                    "- Addon Whitelist.",
-                    "- Addon Denylist.",
+                    "- Addon Allowlist.",
+                    "- Addon Blocklist.",
                     "",
                     "Known source-aware integrations such as SilverDragon and RareScanner are handled separately from unknown addon callers.",
                 }),
@@ -1053,7 +1053,7 @@ NS.HELP_PAGES = {
             {
                 type = "note",
                 text =
-                "Use the whitelist for addon callers you trust and want AWP to adopt. Use the denylist when an addon creates TomTom waypoints that should remain outside AWP's route flow.",
+                "Use the allowlist for addon callers you trust and want AWP to adopt. Use the blocklist when an addon creates TomTom waypoints that should remain outside AWP's route flow.",
             },
             {
                 type = "heading",

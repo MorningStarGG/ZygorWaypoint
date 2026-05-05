@@ -5,12 +5,15 @@ state.bridgeWorldQuestTabTakeover = state.bridgeWorldQuestTabTakeover or {
     hooksInstalled = false,
     context = nil,
     contextDepth = 0,
+    routeSignalSerial = 0,
 }
 
 local wqt = state.bridgeWorldQuestTabTakeover
 
 local WORLDQUESTTAB_CONTEXT_SECONDS = 0.75
 local WORLDQUESTTAB_COORD_EPSILON = 0.0002
+local WORLDQUESTTAB_SOURCE_ADDON = "WorldQuestTab"
+local WORLDQUESTTAB_FALLBACK_CLICK_SOURCE = "worldquesttab_quest_click"
 
 local function GetTimeSafe()
     return type(GetTime) == "function" and GetTime() or 0
@@ -62,6 +65,63 @@ local function ResolveQuestCoords(utils, questInfo)
     return mapID, nil, nil
 end
 
+local function IsValidQuestCoordinate(mapID, x, y)
+    return type(mapID) == "number" and mapID > 0
+        and type(x) == "number" and x > 0 and x <= 1
+        and type(y) == "number" and y > 0 and y <= 1
+end
+
+local function SafeBooleanCall(fn, ...)
+    if type(fn) ~= "function" then
+        return false
+    end
+    local ok, value = pcall(fn, ...)
+    return ok and value == true or false
+end
+
+local function SafeModifiedClick(kind)
+    return SafeBooleanCall(_G["IsModifiedClick"], kind)
+end
+
+local function IsPlainLeftClick(button)
+    if button ~= "LeftButton" then
+        return false
+    end
+    return not SafeModifiedClick("QUESTWATCHTOGGLE")
+        and not SafeModifiedClick("DRESSUP")
+        and not SafeModifiedClick("STICKYCAMERA")
+        and not SafeBooleanCall(_G["IsAltKeyDown"])
+        and not SafeBooleanCall(_G["IsControlKeyDown"])
+        and not SafeBooleanCall(_G["IsShiftKeyDown"])
+end
+
+local function SafeQuestTagInfo(questInfo, questID)
+    if type(questInfo) == "table" and type(questInfo.GetTagInfo) == "function" then
+        local ok, tagInfo = pcall(questInfo.GetTagInfo, questInfo)
+        if ok and type(tagInfo) == "table" then
+            return tagInfo
+        end
+    end
+    if type(C_QuestLog) == "table" and type(C_QuestLog.GetQuestTagInfo) == "function" then
+        local ok, tagInfo = pcall(C_QuestLog.GetQuestTagInfo, questID)
+        if ok and type(tagInfo) == "table" then
+            return tagInfo
+        end
+    end
+end
+
+local function IsNormalWorldQuest(questInfo, questID)
+    local isBonus = SafeBooleanCall(_G["QuestUtils_IsQuestBonusObjective"], questID)
+    local tagInfo = SafeQuestTagInfo(questInfo, questID)
+    return not isBonus and type(tagInfo) == "table" and tagInfo.worldQuestType ~= nil
+end
+
+local function NoteRouteSignal(kind)
+    wqt.routeSignalSerial = (tonumber(wqt.routeSignalSerial) or 0) + 1
+    wqt.lastRouteSignal = kind
+    wqt.lastRouteSignalAt = GetTimeSafe()
+end
+
 local function BuildContext(questInfo, action)
     local questID = NormalizeQuestID(type(questInfo) == "table" and questInfo.questID or nil)
     if not questID then
@@ -77,10 +137,89 @@ local function BuildContext(questInfo, action)
         y = y,
         title = ResolveQuestTitle(questInfo, questID),
         action = TrimString(action) or "worldquesttab",
-        sourceAddon = "WorldQuestTab",
+        sourceAddon = WORLDQUESTTAB_SOURCE_ADDON,
         createdAt = now,
         expiresAt = now + WORLDQUESTTAB_CONTEXT_SECONDS,
     }
+end
+
+local function BuildFallbackRouteMeta(context)
+    if type(NS.BuildQuestIdentity) ~= "function" or type(NS.BuildRouteMeta) ~= "function" then
+        return nil
+    end
+    local sig = type(NS.Signature) == "function"
+        and NS.Signature(context.mapID, context.x, context.y)
+        or nil
+    return NS.BuildRouteMeta(NS.BuildQuestIdentity(context.questID, context.mapID, context.x, context.y, {
+        questSource = WORLDQUESTTAB_FALLBACK_CLICK_SOURCE,
+        sig = sig,
+    }), {
+        manualQuestID = context.questID,
+        sourceAddon = WORLDQUESTTAB_SOURCE_ADDON,
+        searchKind = "worldquesttab",
+    })
+end
+
+local function ResolveFallbackRouteTitle(context)
+    local title = context.title
+    if type(NS.ResolveQuestActionTitle) == "function" then
+        local resolved = NS.ResolveQuestActionTitle(context.questID, title)
+        if type(resolved) == "string" and resolved ~= "" then
+            return resolved
+        end
+    end
+    if type(title) == "string" and title ~= "" then
+        return title
+    end
+    return "Quest " .. tostring(context.questID)
+end
+
+local function BuildFallbackRouteContext(questInfo, button)
+    if not IsPlainLeftClick(button) then
+        return nil
+    end
+    local questID = NormalizeQuestID(type(questInfo) == "table" and questInfo.questID or nil)
+    if not questID or IsNormalWorldQuest(questInfo, questID) then
+        return nil
+    end
+
+    local context = BuildContext(questInfo, "quest_click")
+    if not context or not IsValidQuestCoordinate(context.mapID, context.x, context.y) then
+        return nil
+    end
+    return context
+end
+
+local function RouteFallbackWorldQuestTabClick(context)
+    if type(context) ~= "table" or type(NS.RequestManualRoute) ~= "function" then
+        return false
+    end
+    if type(NS.IsRoutingEnabled) == "function" and not NS.IsRoutingEnabled() then
+        return false
+    end
+    if type(NS.ClearPendingGuideTakeover) == "function" then
+        NS.ClearPendingGuideTakeover()
+    end
+
+    local title = ResolveFallbackRouteTitle(context)
+    local routed = NS.RequestManualRoute(
+        context.mapID,
+        context.x,
+        context.y,
+        title,
+        BuildFallbackRouteMeta(context),
+        { clickContext = { source = WORLDQUESTTAB_FALLBACK_CLICK_SOURCE, explicit = true } }
+    )
+    if routed then
+        NS.Log(
+            "WorldQuestTab click route",
+            tostring(context.questID),
+            tostring(context.mapID),
+            tostring(context.x),
+            tostring(context.y)
+        )
+    end
+    return routed
 end
 
 local function SetContext(questInfo, action)
@@ -158,7 +297,11 @@ function NS.IsWorldQuestTabExplicitSuperTrackCall()
     if not context then
         return false
     end
-    return NormalizeQuestID(context.questID) ~= nil
+    if NormalizeQuestID(context.questID) ~= nil then
+        NoteRouteSignal("supertrack")
+        return true
+    end
+    return false
 end
 
 function NS.IsWorldQuestTabExplicitUserWaypointCall()
@@ -167,7 +310,11 @@ function NS.IsWorldQuestTabExplicitUserWaypointCall()
         return false
     end
     local action = context.action
-    return action == "set_waypoint" or action == "quest_click"
+    if action == "set_waypoint" or action == "quest_click" then
+        NoteRouteSignal("user_waypoint")
+        return true
+    end
+    return false
 end
 
 local function WrapQuestInfo(questInfo)
@@ -218,6 +365,8 @@ local function InstallWorldQuestTabHooks()
         wqt.originalHandleQuestClick = wqt.originalHandleQuestClick or originalHandleQuestClick
         utils.HandleQuestClick = function(self, frame, questInfo, button, ...)
             WrapQuestInfo(questInfo)
+            local signalSerial = tonumber(wqt.routeSignalSerial) or 0
+            local fallbackContext = BuildFallbackRouteContext(questInfo, button)
             local ok, result1, result2, result3, result4 = WithContext(
                 questInfo,
                 "quest_click",
@@ -229,6 +378,9 @@ local function InstallWorldQuestTabHooks()
                 ...
             )
             if not ok then error(result1, 0) end
+            if fallbackContext and (tonumber(wqt.routeSignalSerial) or 0) == signalSerial then
+                RouteFallbackWorldQuestTabClick(fallbackContext)
+            end
             return result1, result2, result3, result4
         end
     end

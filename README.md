@@ -283,8 +283,8 @@ AWP also includes controls for unknown addon waypoint adoption:
 
 - enable or disable adoption
 - review detected callers
-- whitelist addon folder names
-- denylist addon folder names
+- allowlist addon folder names
+- blocklist addon folder names
 
 ### WorldQuestTab Integration
 
@@ -427,7 +427,7 @@ Version 4.0.0 is a major release and rename from the old ZygorWaypoint identity 
 - Rebuilt options into a custom canvas UI with search, filters, previews, release notes, and section images.
 - Added new option sections: About, General, TomTom Arrow, World Overlay, Waypoint, Pinpoint, Navigator, and conditional Zygor.
 - Added in-game help and release notes flow.
-- Added detected addon caller controls, whitelist, and denylist.
+- Added detected addon caller controls, allowlist, and blocklist.
 
 ---
 
@@ -478,8 +478,8 @@ General navigation behavior includes:
 - Auto-Clear Supertracked Quests on Arrival
 - Adopt Waypoints from Unknown Addons
 - Detected Addon Callers
-- Addon Whitelist
-- Addon Denylist
+- Addon Allowlist
+- Addon Blocklist
 
 ### TomTom Arrow Options
 
@@ -752,8 +752,8 @@ Check:
 
 - **General > Adopt Waypoints from Unknown Addons**
 - **Detected Addon Callers**
-- **Addon Whitelist**
-- **Addon Denylist**
+- **Addon Allowlist**
+- **Addon Blocklist**
 
 ### Quest text or objective progress is stale
 

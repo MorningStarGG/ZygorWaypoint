@@ -15,6 +15,7 @@ core/util.lua
 core/quest_text.lua
 core/db.lua
 core/arrowskins.lua
+core/combat_visibility.lua
 integrations/external_waypoint_sources.lua
 integrations/silverdragon.lua
 integrations/rarescanner.lua

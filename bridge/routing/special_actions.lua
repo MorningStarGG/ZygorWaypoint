@@ -61,6 +61,8 @@ local secureButtonLabel = nil
 local activeSecureAttributeKeys = {}
 local tomTomArrowStatusSuppressed = false
 local tomTomStatusSuppressionHooked = false
+local specialActionCombatHidden = false
+local specialActionCombatStateDriver = false
 
 local QUESTION_MARK_TEXTURE = "Interface\\Icons\\INV_Misc_QuestionMark"
 local ACTION_BUTTON_BASE_SIZE = 56
@@ -185,6 +187,38 @@ end
 
 local function GetTomTomArrowFrame()
     return type(NS.GetTomTomArrow) == "function" and NS.GetTomTomArrow() or nil
+end
+
+local function ShouldUseSpecialActionCombatDriver()
+    return type(NS.ShouldHideTomTomInCombat) == "function" and NS.ShouldHideTomTomInCombat() == true
+end
+
+local function ClearSpecialActionCombatStateDriver(btn)
+    if type(btn) ~= "table" or (type(InCombatLockdown) == "function" and InCombatLockdown()) then
+        return
+    end
+    if specialActionCombatStateDriver and type(UnregisterStateDriver) == "function" then
+        UnregisterStateDriver(btn, "visibility")
+        specialActionCombatStateDriver = false
+    end
+end
+
+local function ApplySpecialActionCombatStateDriver(btn)
+    if type(btn) ~= "table" or (type(InCombatLockdown) == "function" and InCombatLockdown()) then
+        return
+    end
+    if type(RegisterStateDriver) ~= "function" or type(UnregisterStateDriver) ~= "function" then
+        return
+    end
+
+    local wanted = ShouldUseSpecialActionCombatDriver()
+    if wanted and not specialActionCombatStateDriver then
+        RegisterStateDriver(btn, "visibility", "[combat] hide; show")
+        specialActionCombatStateDriver = true
+    elseif not wanted and specialActionCombatStateDriver then
+        UnregisterStateDriver(btn, "visibility")
+        specialActionCombatStateDriver = false
+    end
 end
 
 local function GetOrCreateSecureButton()
@@ -315,6 +349,7 @@ local function HideSpecialActionVisuals()
         secureButtonLabel:Hide()
     end
     if secureButton and not InCombatLockdown() then
+        ClearSpecialActionCombatStateDriver(secureButton)
         secureButton:Hide()
     end
 end
@@ -536,6 +571,11 @@ local function ShowSecureActionVisuals(action)
     if type(action) ~= "table" then
         return
     end
+    if specialActionCombatHidden then
+        state.routing.specialActionPresented = true
+        state.routing.specialActionPresentedSig = action.sig
+        return
+    end
     if not IsActionInActivationRange(action) then
         return
     end
@@ -545,6 +585,7 @@ local function ShowSecureActionVisuals(action)
         return
     end
     local btn = GetOrCreateSecureButton()
+    ApplySpecialActionCombatStateDriver(btn)
     ApplyActionIconVisual(action)
     SetTomTomArrowVisible(mode ~= "replace_arrow")
     SetSpecialActionLabel(action, mode ~= "replace_arrow" or not EnsureTomTomTitleVisible())
@@ -557,6 +598,43 @@ function NS.RefreshSpecialActionButtonPresentation()
     local action = state.routing and state.routing.specialActionState or nil
     if state.routing.specialActionPresented == true and type(action) == "table" then
         ShowSecureActionVisuals(action)
+    end
+end
+
+function NS.ApplySpecialActionCombatVisibility(hidden)
+    specialActionCombatHidden = hidden and true or false
+
+    local btn = secureButton
+    if btn then
+        if specialActionCombatHidden then
+            if state.routing.specialActionPresented == true then
+                ApplySpecialActionCombatStateDriver(btn)
+            else
+                ClearSpecialActionCombatStateDriver(btn)
+            end
+            if (type(InCombatLockdown) ~= "function" or not InCombatLockdown()) and secureButtonLabel then
+                secureButtonLabel:SetText("")
+                secureButtonLabel:Hide()
+            end
+            if type(InCombatLockdown) ~= "function" or not InCombatLockdown() then
+                btn:Hide()
+            end
+        else
+            if type(InCombatLockdown) ~= "function" or not InCombatLockdown() then
+                if state.routing.specialActionPresented == true
+                    and type(state.routing.specialActionState) == "table"
+                then
+                    NS.RefreshSpecialActionButtonPresentation()
+                else
+                    ClearSpecialActionCombatStateDriver(btn)
+                    if secureButtonLabel then
+                        secureButtonLabel:SetText("")
+                        secureButtonLabel:Hide()
+                    end
+                    btn:Hide()
+                end
+            end
+        end
     end
 end
 

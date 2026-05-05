@@ -30,6 +30,7 @@ local DB_DEFAULTS = {
 
     routingEnabled           = true,
     routingBackend           = "direct",  -- first-run auto-selects zygor | farstrider | mapzeroth | direct
+    combatHideMode           = C.COMBAT_HIDE_MODE_DISABLED,
     resumeManualRoute        = true,
     arrowSkin                = C.SKIN_STARLIGHT,
     arrowScale               = C.SCALE_DEFAULT,
@@ -251,6 +252,29 @@ function NS.NormalizeManualWaypointClearDistance(value)
     return n
 end
 
+function NS.NormalizeCombatHideMode(value)
+    if type(value) == "string" then
+        local key = value:lower():gsub("%s+", "_")
+        if key == "off" or key == "none" then
+            return C.COMBAT_HIDE_MODE_DISABLED
+        end
+        if key == "tomtom_arrow" or key == "arrow" then
+            return C.COMBAT_HIDE_MODE_TOMTOM
+        end
+        if key == "world_overlay" or key == "worldoverlay" then
+            return C.COMBAT_HIDE_MODE_OVERLAY
+        end
+        if key == "all" then
+            return C.COMBAT_HIDE_MODE_BOTH
+        end
+        if C.COMBAT_HIDE_MODES[key] then
+            return key
+        end
+    end
+
+    return C.COMBAT_HIDE_MODE_DISABLED
+end
+
 function NS.NormalizeAddonTakeoverName(value)
     if type(value) ~= "string" then
         return nil
@@ -307,10 +331,10 @@ local function NormalizeAddonTakeoverList(list)
 end
 
 local function NormalizeAddonTakeoverLists(db)
-    db.genericAddonBlizzardTakeoverWhitelist =
-        NormalizeAddonTakeoverList(db.genericAddonBlizzardTakeoverWhitelist)
-    db.genericAddonBlizzardTakeoverDenylist =
-        NormalizeAddonTakeoverList(db.genericAddonBlizzardTakeoverDenylist)
+    db.genericAddonBlizzardTakeoverAllowlist =
+        NormalizeAddonTakeoverList(db.genericAddonBlizzardTakeoverAllowlist)
+    db.genericAddonBlizzardTakeoverBlocklist =
+        NormalizeAddonTakeoverList(db.genericAddonBlizzardTakeoverBlocklist)
 end
 
 -- Pre-compute format strings for each number-type overlay setting def.
@@ -510,6 +534,7 @@ function NS.ApplyDBDefaults()
     elseif not VALID_ROUTING_BACKENDS[db.routingBackend] then
         db.routingBackend = "direct"
     end
+    db.combatHideMode = NS.NormalizeCombatHideMode(db.combatHideMode)
     db.guideStepBackgroundsHover = NS.NormalizeGuideStepBackgroundsHoverMode(db.guideStepBackgroundsHover)
     db.manualWaypointClearDistance = NS.NormalizeManualWaypointClearDistance(db.manualWaypointClearDistance)
     if db.manualClickQueueMode ~= "create"
@@ -624,6 +649,35 @@ function NS.ApplyTomTomScalePolicy()
     db.arrowScale = NS.NormalizeScale(db.arrowScale)
 end
 
+-- ============================================================
+-- Combat visibility settings
+-- ============================================================
+
+function NS.GetCombatHideMode()
+    local db = NS.GetDB()
+    db.combatHideMode = NS.NormalizeCombatHideMode(db.combatHideMode)
+    return db.combatHideMode
+end
+
+function NS.SetCombatHideMode(mode)
+    local db = NS.GetDB()
+    db.combatHideMode = NS.NormalizeCombatHideMode(mode)
+    if type(NS.ApplyCombatVisibilityGuard) == "function" then
+        NS.ApplyCombatVisibilityGuard("setting")
+    end
+    return db.combatHideMode
+end
+
+function NS.ShouldHideTomTomInCombat()
+    local mode = NS.GetCombatHideMode()
+    return mode == C.COMBAT_HIDE_MODE_TOMTOM or mode == C.COMBAT_HIDE_MODE_BOTH
+end
+
+function NS.ShouldHideWorldOverlayInCombat()
+    local mode = NS.GetCombatHideMode()
+    return mode == C.COMBAT_HIDE_MODE_OVERLAY or mode == C.COMBAT_HIDE_MODE_BOTH
+end
+
 function NS.GetSpecialTravelButtonScale()
     local db = NS.GetDB()
     db.specialTravelButtonScale = NS.NormalizeScale(db.specialTravelButtonScale)
@@ -732,11 +786,11 @@ end
 
 local function GetAddonTakeoverListField(kind)
     kind = type(kind) == "string" and kind:lower() or ""
-    if kind == "whitelist" or kind == "allowlist" or kind == "allow" or kind == "white" then
-        return "genericAddonBlizzardTakeoverWhitelist", "whitelist"
+    if kind == "allowlist" then
+        return "genericAddonBlizzardTakeoverAllowlist", "allowlist"
     end
-    if kind == "denylist" or kind == "blacklist" or kind == "blocklist" or kind == "deny" or kind == "black" then
-        return "genericAddonBlizzardTakeoverDenylist", "denylist"
+    if kind == "blocklist" then
+        return "genericAddonBlizzardTakeoverBlocklist", "blocklist"
     end
     return nil, nil
 end
@@ -792,9 +846,9 @@ function NS.AddGenericAddonBlizzardTakeoverListEntry(kind, addonName)
         db[field] = NormalizeAddonTakeoverList(list)
     end
 
-    local opposite = canonicalKind == "whitelist"
-        and "genericAddonBlizzardTakeoverDenylist"
-        or "genericAddonBlizzardTakeoverWhitelist"
+    local opposite = canonicalKind == "allowlist"
+        and "genericAddonBlizzardTakeoverBlocklist"
+        or "genericAddonBlizzardTakeoverAllowlist"
     local oppositeList = GetNormalizedAddonTakeoverList(db, opposite)
     local oppositeIndex = FindAddonTakeoverListIndex(oppositeList, normalized)
     if oppositeIndex then
@@ -837,16 +891,16 @@ function NS.GetGenericAddonBlizzardTakeoverDecision(addonName)
         return false, "invalid_addon"
     end
     local db = NS.GetDB()
-    local denylist = GetNormalizedAddonTakeoverList(db, "genericAddonBlizzardTakeoverDenylist")
-    local deniedIndex, deniedName = FindAddonTakeoverListIndex(denylist, normalized)
-    if deniedIndex then
-        return false, "denylist", deniedName
+    local blocklist = GetNormalizedAddonTakeoverList(db, "genericAddonBlizzardTakeoverBlocklist")
+    local blockedIndex, blockedName = FindAddonTakeoverListIndex(blocklist, normalized)
+    if blockedIndex then
+        return false, "blocklist", blockedName
     end
 
-    local whitelist = GetNormalizedAddonTakeoverList(db, "genericAddonBlizzardTakeoverWhitelist")
-    local allowedIndex, allowedName = FindAddonTakeoverListIndex(whitelist, normalized)
+    local allowlist = GetNormalizedAddonTakeoverList(db, "genericAddonBlizzardTakeoverAllowlist")
+    local allowedIndex, allowedName = FindAddonTakeoverListIndex(allowlist, normalized)
     if allowedIndex then
-        return true, "whitelist", allowedName
+        return true, "allowlist", allowedName
     end
 
     if db.genericAddonBlizzardTakeoverEnabled == true then
