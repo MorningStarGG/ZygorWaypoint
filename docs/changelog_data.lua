@@ -2,6 +2,17 @@ local NS = _G.AzerothWaypointNS
 
 NS.CHANGELOG_DATA = {
     {
+        version = "4.0.0a",
+        sections = {
+            { title = "Compatibility fixes", entries = {
+                { text = "Fixed the native world overlay failing to load when Zygor Guides Viewer is disabled or unavailable.", level = 1 },
+                { text = "Removed an accidental hard dependency on Zygor guide-resolver helpers from the shared world overlay presentation layer.", level = 1 },
+                { text = "Added safe fallback helpers for overlay text normalization, coordinate subtext, guide-goal visibility, quest IDs, goal coordinates, and goal actions.", level = 1 },
+                { text = "Guarded Zygor canonical-goal handling so APR, WoWPro, manual routing, queues, and non-Zygor routing backends can initialize normally without Zygor.", level = 1 },
+            }},
+        },
+    },
+    {
         version = "4.0.0",
         sections = {
             { title = "AzerothWaypoint rename and v4 reset", entries = {

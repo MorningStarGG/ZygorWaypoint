@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.0.0a
+
+- **Compatibility fixes**
+  - Fixed the native world overlay failing to load when Zygor Guides Viewer is disabled or unavailable.
+  - Removed an accidental hard dependency on Zygor guide-resolver helpers from the shared world overlay presentation layer.
+  - Added safe fallback helpers for overlay text normalization, coordinate subtext, guide-goal visibility, quest IDs, goal coordinates, and goal actions.
+  - Guarded Zygor canonical-goal handling so APR, WoWPro, manual routing, queues, and non-Zygor routing backends can initialize normally without Zygor.
+
 ## 4.0.0
 
 - **AzerothWaypoint rename and v4 reset**
