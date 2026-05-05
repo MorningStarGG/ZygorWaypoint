@@ -129,6 +129,16 @@ local function RenderGeneral()
         opts.CreateCombatHideModeOptions,
         function() return NS.GetCombatHideMode() end,
         function(v) NS.SetCombatHideMode(v) end)
+    AddDropdown("Quick-Start Popup",
+        "Controls whether the first-time quick-start guide opens automatically on login.",
+        opts.CreateStartupHelpModeOptions,
+        function() return NS.GetStartupHelpMode() end,
+        function(v) NS.SetStartupHelpMode(v) end)
+    AddDropdown("What's New Popup",
+        "Controls whether What's New opens automatically on login after addon updates.",
+        opts.CreateStartupHelpModeOptions,
+        function() return NS.GetStartupWhatsNewMode() end,
+        function(v) NS.SetStartupWhatsNewMode(v) end)
 
     Spacer()
     SectionHeader("Manual Waypoints")

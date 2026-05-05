@@ -5,12 +5,14 @@
   - Added Hide During Combat with options for Disabled, TomTom + Travel Button, World Overlay, and Both.
   - TomTom combat hiding uses a secure visibility wrapper so the TomTom arrow and special travel button can be hidden during combat without protected-frame errors.
   - Added player control lost/gained route refresh handling so taxi and flightpath start/end events replan the active route and recompute the TomTom carrier.
+  - Added separate Quick-Start Popup and What's New Popup settings, each with account-wide, per-character, and disabled modes. Quick-start defaults to per-character; What's New defaults to account-wide.
 
 - **Compatibility fixes**
   - Added a WorldQuestTab click fallback for bonus objectives and other non-world-quest entries that have valid quest coordinates but do not emit Blizzard waypoint or supertrack signals.
   - Added transparency, transparent, alpha, and visibility tags to the opacity options so searching transparency will find the opacity controls.
   - Prevented transient external waypoint sources such as RareScanner and SilverDragon from opening the manual queue placement prompt.
   - Renamed addon waypoint adoption list internals and wording to Allowlist/Blocklist.
+  - Fixed update detection for lettered hotfix versions such as 4.0.0a to 4.0.0b.
 
 ## 4.0.0a
 

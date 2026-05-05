@@ -31,6 +31,8 @@ local DB_DEFAULTS = {
     routingEnabled           = true,
     routingBackend           = "direct",  -- first-run auto-selects zygor | farstrider | mapzeroth | direct
     combatHideMode           = C.COMBAT_HIDE_MODE_DISABLED,
+    startupHelpMode          = C.STARTUP_HELP_MODE_CHARACTER,
+    startupWhatsNewMode      = C.STARTUP_HELP_MODE_ACCOUNT,
     resumeManualRoute        = true,
     arrowSkin                = C.SKIN_STARLIGHT,
     arrowScale               = C.SCALE_DEFAULT,
@@ -275,6 +277,26 @@ function NS.NormalizeCombatHideMode(value)
     return C.COMBAT_HIDE_MODE_DISABLED
 end
 
+function NS.NormalizeStartupHelpMode(value)
+    if type(value) == "string" then
+        local key = value:lower():gsub("%s+", "_")
+        if key == "account_wide" or key == "accountwide" or key == "account" then
+            return C.STARTUP_HELP_MODE_ACCOUNT
+        end
+        if key == "per_character" or key == "character_wide" or key == "char" then
+            return C.STARTUP_HELP_MODE_CHARACTER
+        end
+        if key == "off" or key == "none" or key == "disabled" then
+            return C.STARTUP_HELP_MODE_DISABLED
+        end
+        if C.STARTUP_HELP_MODES[key] then
+            return key
+        end
+    end
+
+    return C.STARTUP_HELP_MODE_ACCOUNT
+end
+
 function NS.NormalizeAddonTakeoverName(value)
     if type(value) ~= "string" then
         return nil
@@ -468,6 +490,14 @@ local function ParseVersionParts(version)
     return parts
 end
 
+local function ParseVersionSuffix(version)
+    if type(version) ~= "string" then
+        return ""
+    end
+
+    return version:lower():match("^%s*%d+%.%d+%.%d+([%a][%w%-]*)") or ""
+end
+
 function NS.GetAddonVersionMajor(version)
     local parts = ParseVersionParts(version)
     return parts and parts[1] or nil
@@ -499,6 +529,18 @@ function NS.CompareAddonVersions(left, right)
         end
     end
 
+    local leftSuffix = ParseVersionSuffix(left)
+    local rightSuffix = ParseVersionSuffix(right)
+    if leftSuffix ~= rightSuffix then
+        if leftSuffix == "" then
+            return -1
+        end
+        if rightSuffix == "" then
+            return 1
+        end
+        return leftSuffix < rightSuffix and -1 or 1
+    end
+
     return 0
 end
 
@@ -519,7 +561,6 @@ function NS.ApplyDBDefaults()
         dbState.initCaptured = true
         dbState.hadExistingData = next(db) ~= nil
     end
-
     for key, value in pairs(DB_DEFAULTS) do
         if db[key] == nil then
             db[key] = value
@@ -535,6 +576,8 @@ function NS.ApplyDBDefaults()
         db.routingBackend = "direct"
     end
     db.combatHideMode = NS.NormalizeCombatHideMode(db.combatHideMode)
+    db.startupHelpMode = NS.NormalizeStartupHelpMode(db.startupHelpMode)
+    db.startupWhatsNewMode = NS.NormalizeStartupHelpMode(db.startupWhatsNewMode)
     db.guideStepBackgroundsHover = NS.NormalizeGuideStepBackgroundsHoverMode(db.guideStepBackgroundsHover)
     db.manualWaypointClearDistance = NS.NormalizeManualWaypointClearDistance(db.manualWaypointClearDistance)
     if db.manualClickQueueMode ~= "create"
@@ -568,6 +611,18 @@ function NS.UpdateStoredAddonVersion()
     GetDBMeta().lastAddonVersion = NS.VERSION
 end
 
+function NS.GetStoredAddonVersionForCurrentCharacter()
+    local version = GetCharDB().lastAddonVersion
+    if type(version) ~= "string" or version == "" then
+        return nil
+    end
+    return version
+end
+
+function NS.UpdateStoredAddonVersionForCurrentCharacter()
+    GetCharDB().lastAddonVersion = NS.VERSION
+end
+
 function NS.GetWaypointUIPromptVersion()
     local version = GetCharDB().waypointUIPromptVersion
     if type(version) ~= "string" or version == "" then
@@ -586,6 +641,15 @@ end
 
 function NS.MarkZygorArrowPromptShown()
     GetCharDB().zygorArrowPromptShown = true
+    return true
+end
+
+function NS.HasSeenOverviewAccountWide()
+    return GetDBMeta().overviewShown == true
+end
+
+function NS.MarkOverviewShownAccountWide()
+    GetDBMeta().overviewShown = true
     return true
 end
 
@@ -610,6 +674,30 @@ function NS.ConsumePendingOverviewReplayForCurrentCharacter()
     end
     db.pendingOverviewReplay = nil
     return true
+end
+
+function NS.GetStartupHelpMode()
+    local db = NS.GetDB()
+    db.startupHelpMode = NS.NormalizeStartupHelpMode(db.startupHelpMode)
+    return db.startupHelpMode
+end
+
+function NS.SetStartupHelpMode(mode)
+    local db = NS.GetDB()
+    db.startupHelpMode = NS.NormalizeStartupHelpMode(mode)
+    return db.startupHelpMode
+end
+
+function NS.GetStartupWhatsNewMode()
+    local db = NS.GetDB()
+    db.startupWhatsNewMode = NS.NormalizeStartupHelpMode(db.startupWhatsNewMode)
+    return db.startupWhatsNewMode
+end
+
+function NS.SetStartupWhatsNewMode(mode)
+    local db = NS.GetDB()
+    db.startupWhatsNewMode = NS.NormalizeStartupHelpMode(mode)
+    return db.startupWhatsNewMode
 end
 
 -- ============================================================

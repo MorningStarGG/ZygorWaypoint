@@ -142,6 +142,17 @@ C.COMBAT_HIDE_MODES = {
     [C.COMBAT_HIDE_MODE_BOTH] = true,
 }
 
+-- Startup help / What's New notification modes
+C.STARTUP_HELP_MODE_ACCOUNT = "account"
+C.STARTUP_HELP_MODE_CHARACTER = "character"
+C.STARTUP_HELP_MODE_DISABLED = "disabled"
+
+C.STARTUP_HELP_MODES = {
+    [C.STARTUP_HELP_MODE_ACCOUNT] = true,
+    [C.STARTUP_HELP_MODE_CHARACTER] = true,
+    [C.STARTUP_HELP_MODE_DISABLED] = true,
+}
+
 -- Timing constants
 C.UPDATE_INTERVAL_SECONDS = 0.35
 C.FALLBACK_DEBOUNCE_SECONDS = 1.20

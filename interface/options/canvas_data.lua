@@ -100,6 +100,14 @@ Data.OPTION_PREVIEWS = {
         image = MEDIA_HELP .. "Overlay.tga",
         desc = "Temporarily hides TomTom, the special travel button, the 3D overlay, or both while you are in combat.",
     },
+    ["Quick-Start Popup"] = {
+        image = MEDIA_HELP .. "MainShot.tga",
+        desc = "Controls whether the first-time quick-start guide opens automatically on login.",
+    },
+    ["What's New Popup"] = {
+        image = MEDIA_HELP .. "MainShot.tga",
+        desc = "Controls whether What's New opens automatically on login after addon updates.",
+    },
     ["Enable 3D World Overlay"] = {
         image = MEDIA_HELP .. "Overlay.tga",
         desc = "Shows active destinations as in-world markers.",
@@ -196,6 +204,16 @@ Data.OPTION_VALUE_PREVIEWS = {
         [C.COMBAT_HIDE_MODE_OVERLAY] = { desc = "Hides the 3D world overlay during combat and restores it afterward." },
         [C.COMBAT_HIDE_MODE_BOTH] = { desc = "Hides TomTom, the special travel button, and the 3D world overlay during combat." },
     },
+    ["Quick-Start Popup"] = {
+        [C.STARTUP_HELP_MODE_ACCOUNT] = { desc = "Shows the first-time quick-start guide once per account." },
+        [C.STARTUP_HELP_MODE_CHARACTER] = { desc = "Shows the first-time quick-start guide once per character." },
+        [C.STARTUP_HELP_MODE_DISABLED] = { desc = "Disables the automatic first-time quick-start guide on login." },
+    },
+    ["What's New Popup"] = {
+        [C.STARTUP_HELP_MODE_ACCOUNT] = { desc = "Shows What's New once per addon update per account." },
+        [C.STARTUP_HELP_MODE_CHARACTER] = { desc = "Shows What's New once per addon update per character." },
+        [C.STARTUP_HELP_MODE_DISABLED] = { desc = "Disables automatic What's New popups after addon updates." },
+    },
     ["Context Display"] = {
         [C.WORLD_OVERLAY_CONTEXT_DISPLAY_DIAMOND_ICON] = { image = MEDIA_HELP .. "FullContext.tga", desc = "Shows both the context diamond and destination icon." },
         [C.WORLD_OVERLAY_CONTEXT_DISPLAY_ICON_ONLY] = { image = MEDIA_HELP .. "IconOnly.tga", desc = "Shows the destination icon without the backing diamond." },
@@ -248,7 +266,9 @@ Data.OPTIONS = {
     { key = "about",     label = "About",                                     desc = Data.ABOUT_SUMMARY },
     { key = "general",   label = "Enable Routing",                            desc = "Enable or disable AzerothWaypoint route ownership.",                                                  added = "3.0.0", updated = "4.0.0",                                                                                                 note = "Reworked for v4 route ownership and backend selection." },
     { key = "general",   label = "Routing Backend",                           desc = "Choose the routing backend: Farstrider, Mapzeroth, Zygor or use TomTom Directly",                     added = "4.0.0", note = "Adds TomTom Direct, Zygor, Mapzeroth, and FarstriderLib backend support.",                                 tags = "direct tomtom direct farstrider mapzeroth zygor" },
-    { key = "general",   label = "Hide During Combat",                        desc = "Temporarily hide TomTom, the special travel button, the 3D world overlay, or both while in combat.",      added = "4.0.0", tags = "combat hide tomtom arrow travel button special action overlay world overlay both disabled" },
+    { key = "general",   label = "Hide During Combat",                        desc = "Temporarily hide TomTom, the special travel button, the 3D world overlay, or both while in combat.",      added = "4.0.0b", tags = "combat hide tomtom arrow travel button special action overlay world overlay both disabled" },
+    { key = "general",   label = "Quick-Start Popup",                         desc = "Choose whether the first-time quick-start guide opens account-wide, per-character, or not automatically.", added = "4.0.0b", tags = "help popup login startup account character disabled first time quick start overview guide" },
+    { key = "general",   label = "What's New Popup",                          desc = "Choose whether What's New opens account-wide, per-character, or not automatically after addon updates.", added = "4.0.0b", tags = "whats new changelog popup login startup account character disabled updates release notes" },
     { key = "general",   label = "Manual Click Queue Behavior",               desc = "Choose how Blizzard map clicks enter the manual queue.",                                              added = "4.0.0", note = "Adds explicit create, replace, append, and prompt behavior for map clicks.",                               tags = "create new queue replace active append ask prompt" },
     { key = "general",   label = "Auto-Clear Manual Waypoints on Arrival",    desc = "Clear manual waypoints when you reach the destination.",                                              added = "2.3.0" },
     { key = "general",   label = "Manual Waypoint Clear Distance",            desc = "Set the arrival distance used to clear manual waypoints.",                                            added = "2.3.0" },

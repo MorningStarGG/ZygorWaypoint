@@ -278,6 +278,19 @@ local function FormatCombatHideMode(mode)
     return "Disabled"
 end
 
+local function FormatStartupHelpMode(mode)
+    mode = type(NS.NormalizeStartupHelpMode) == "function"
+        and NS.NormalizeStartupHelpMode(mode)
+        or tostring(mode or "")
+    if mode == C.STARTUP_HELP_MODE_CHARACTER then
+        return "Per Character"
+    end
+    if mode == C.STARTUP_HELP_MODE_DISABLED then
+        return "Disabled"
+    end
+    return "Account Wide"
+end
+
 local function handleBackend(arg)
     local db = NS.GetDB()
     if arg == "direct" or arg == "zygor" or arg == "mapzeroth" or arg == "farstrider" then
@@ -600,6 +613,10 @@ local function handleStatus()
         NS.IsSuperTrackedQuestAutoClearEnabled() and "on" or "off",
         "Combat hide:",
         FormatCombatHideMode(type(NS.GetCombatHideMode) == "function" and NS.GetCombatHideMode() or nil),
+        "Quick-start:",
+        FormatStartupHelpMode(type(NS.GetStartupHelpMode) == "function" and NS.GetStartupHelpMode() or nil),
+        "What's New:",
+        FormatStartupHelpMode(type(NS.GetStartupWhatsNewMode) == "function" and NS.GetStartupWhatsNewMode() or nil),
         "Unknown addon waypoints:",
         NS.IsGenericAddonBlizzardTakeoverEnabled() and "on" or "off",
         "Compact viewer:",

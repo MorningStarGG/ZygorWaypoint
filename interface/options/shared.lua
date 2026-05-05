@@ -676,6 +676,14 @@ local function CreateCombatHideModeOptions()
     return container:GetData()
 end
 
+local function CreateStartupHelpModeOptions()
+    local container = CreateControlTextContainer()
+    container:Add(C.STARTUP_HELP_MODE_ACCOUNT, "Account Wide")
+    container:Add(C.STARTUP_HELP_MODE_CHARACTER, "Per Character")
+    container:Add(C.STARTUP_HELP_MODE_DISABLED, "Disabled")
+    return container:GetData()
+end
+
 local function CreateManualClickQueueModeOptions()
     local container = CreateControlTextContainer()
     local options = type(NS.GetManualClickQueueModeOptions) == "function" and NS.GetManualClickQueueModeOptions() or nil
@@ -803,6 +811,7 @@ M.CreateSkinOptions = CreateSkinOptions
 M.CreateGuideStepBackgroundHoverOptions = CreateGuideStepBackgroundHoverOptions
 M.CreateRoutingBackendOptions = CreateRoutingBackendOptions
 M.CreateCombatHideModeOptions = CreateCombatHideModeOptions
+M.CreateStartupHelpModeOptions = CreateStartupHelpModeOptions
 M.CreateManualClickQueueModeOptions = CreateManualClickQueueModeOptions
 M.CreateWorldOverlayInfoOptions = CreateWorldOverlayInfoOptions
 M.CreateWorldOverlayColorModeOptions = CreateWorldOverlayColorModeOptions
