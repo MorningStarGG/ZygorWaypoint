@@ -2,7 +2,7 @@
 
 > A TomTom-powered navigation bridge, route planner selector, manual waypoint queue, and 3D world overlay for World of Warcraft.
 
-![Version](https://img.shields.io/badge/version-4.0.0-blue)
+![Version](https://img.shields.io/badge/version-4.0.0a-blue)
 ![Game](https://img.shields.io/badge/World%20of%20Warcraft-Addon-orange)
 ![Required](https://img.shields.io/badge/Required-TomTom-red)
 ![Optional](https://img.shields.io/badge/Optional-Zygor%20%7C%20APR%20%7C%20WoWPro%20%7C%20Farstrider%20%7C%20Mapzeroth-lightgrey)

@@ -2,7 +2,7 @@
 ## Title: AzerothWaypoint
 ## Notes: A TomTom-powered navigation bridge, route planner selector, manual waypoint queue, and 3D world overlay for World of Warcraft
 ## Author: MorningStarGG
-## Version: 4.0.0
+## Version: 4.0.0a
 ## IconTexture: Interface\AddOns\AzerothWaypoint\media\icon.png
 ## SavedVariables: AzerothWaypointDB
 ## SavedVariablesPerCharacter: AzerothWaypointCharDB
