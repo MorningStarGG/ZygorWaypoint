@@ -9,7 +9,7 @@ local questSubtextCache = M.questSubtextCache
 local fontStringTextCache = M.fontStringTextCache
 local _settings = M.settingsSnapshot
 local CFG = M.Config
-local GR = NS.Internal.GuideResolver
+local GR = type(NS.Internal.GuideResolver) == "table" and NS.Internal.GuideResolver or nil
 
 local GetPlayerWaypointDistance = NS.GetPlayerWaypointDistance
 
@@ -34,12 +34,84 @@ local GOSSIP_ICON_TYPE_DEFS = CFG.GOSSIP_ICON_TYPE_DEFS
 local QUEST_ICON_TYPE_DEFS = CFG.QUEST_ICON_TYPE_DEFS
 local ResolveQuestTypeDetails = M.ResolveQuestTypeDetails
 local ResolveQuestType = M.ResolveQuestType
-local NormalizeText = GR.NormalizeText
-local FormatCoordinateSubtext = GR.FormatCoordinateSubtext
-local IsGoalVisible = GR.IsGoalVisible
-local GetCurrentGoalQuestID = GR.GetGoalQuestID
-local GetGoalCoords = GR.GetGoalCoords
-local GetCurrentGoalAction = GR.GetGoalAction
+
+local function NormalizeTextFallback(value)
+    if type(NS.NormalizeWaypointTitle) == "function" then
+        return NS.NormalizeWaypointTitle(value)
+    end
+    if value == nil then
+        return nil
+    end
+    value = tostring(value)
+    value = value:gsub("[\r\n]+", " ")
+    value = value:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    value = value:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+    return value ~= "" and value or nil
+end
+
+local function FormatCoordinateSubtextFallback(x, y)
+    if type(x) ~= "number" or type(y) ~= "number" then
+        return nil
+    end
+    return string.format("x: %.1f, y: %.1f", x * 100, y * 100)
+end
+
+local function IsGoalVisibleFallback(goal)
+    if type(goal) ~= "table" then
+        return false
+    end
+    if type(goal.IsVisible) ~= "function" then
+        return true
+    end
+    local ok, visible = pcall(goal.IsVisible, goal)
+    if not ok then
+        return true
+    end
+    return visible ~= false
+end
+
+local function GetGoalQuestIDFallback(goal)
+    if type(goal) ~= "table" then
+        return nil
+    end
+    local quest = type(goal.quest) == "table" and goal.quest or nil
+    return tonumber(goal.questid or (quest and (quest.id or quest.questid)) or 0) or nil
+end
+
+local function GetGoalCoordsFallback(goal)
+    if type(goal) ~= "table" then
+        return nil, nil, nil
+    end
+    local mapID = goal.map or goal.mapid or goal.mapID
+    local x = goal.x
+    local y = goal.y
+    if type(mapID) == "number" and type(x) == "number" and type(y) == "number" then
+        return mapID, x, y
+    end
+    return nil, nil, nil
+end
+
+local function GetGoalActionFallback(goal)
+    if type(goal) ~= "table" then
+        return nil
+    end
+    return type(goal.action) == "string" and goal.action or nil
+end
+
+local function GetGuideResolverFunction(key)
+    if type(GR) ~= "table" then
+        return nil
+    end
+    local fn = GR[key]
+    return type(fn) == "function" and fn or nil
+end
+
+local NormalizeText = GetGuideResolverFunction("NormalizeText") or NormalizeTextFallback
+local FormatCoordinateSubtext = GetGuideResolverFunction("FormatCoordinateSubtext") or FormatCoordinateSubtextFallback
+local IsGoalVisible = GetGuideResolverFunction("IsGoalVisible") or IsGoalVisibleFallback
+local GetCurrentGoalQuestID = GetGuideResolverFunction("GetGoalQuestID") or GetGoalQuestIDFallback
+local GetGoalCoords = GetGuideResolverFunction("GetGoalCoords") or GetGoalCoordsFallback
+local GetCurrentGoalAction = GetGuideResolverFunction("GetGoalAction") or GetGoalActionFallback
 
 -- ============================================================
 -- Math utilities
@@ -109,7 +181,7 @@ local function GetCurrentGoal()
         return nil, step
     end
 
-    local canonical      = NS.ResolveCanonicalGuideGoal(step)
+    local canonical = type(NS.ResolveCanonicalGuideGoal) == "function" and NS.ResolveCanonicalGuideGoal(step) or nil
     local currentGoalNum = canonical and canonical.canonicalGoalNum
     if type(currentGoalNum) == "number" then
         local currentGoal = step.goals[currentGoalNum]
